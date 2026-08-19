@@ -8,12 +8,14 @@ Dokumen ini menjelaskan arsitektur teknis target sistem, status implementasi rep
 Saat dokumen ini ditulis, repositori sudah memiliki:
 
 - frontend React + Vite,
+- backend Express + PostgreSQL untuk endpoint inti,
 - dokumentasi desain produk,
 - dokumentasi PRD,
 - `Dockerfile` untuk build produksi frontend,
-- `docker-compose.yml` untuk menjalankan frontend di Docker.
+- `backend/Dockerfile` untuk build service API,
+- `docker-compose.yml` untuk menjalankan frontend, API, dan PostgreSQL di Docker.
 
-Komponen backend, realtime, database, dan cache pada dokumen ini masih berstatus blueprint arsitektur implementasi berikutnya.
+Komponen realtime, Redis, object storage, dan media service masih berstatus blueprint arsitektur implementasi berikutnya.
 
 ## 2. Gambaran Sistem Target
 
@@ -64,8 +66,8 @@ flowchart LR
 
 Catatan implementasi:
 
-- Yang benar-benar tersedia di repo saat ini adalah container `frontend`.
-- Service `api`, `realtime`, `postgres`, `redis`, dan `object storage` adalah target stack yang harus ditambahkan pada fase implementasi backend.
+- Yang benar-benar tersedia di repo saat ini adalah container `frontend`, `api`, dan `postgres`.
+- Service `realtime`, `redis`, dan `object storage` masih menjadi target stack fase berikutnya.
 - Semua service dirancang untuk berada pada network Docker yang sama agar komunikasi antar-service tetap sederhana pada lingkungan development.
 
 ## 4. Komponen Utama
@@ -79,8 +81,10 @@ Catatan implementasi:
 ### 4.2 API Service
 
 - Menangani autentikasi, otorisasi, CRUD produk, stream, flash sale, dan order.
+- Implementasi saat ini sudah menyediakan endpoint `GET /health`, `GET /catalog`, dan `POST /orders`.
 - Menyimpan data persisten ke PostgreSQL.
-- Menggunakan Redis untuk cache, sinkronisasi stok, dan operasi atomik.
+- Untuk MVP sekarang, operasi stok atomik memakai query `UPDATE ... WHERE sisa >= qty RETURNING ...` di PostgreSQL.
+- Redis tetap menjadi opsi evolusi saat write contention meningkat dan realtime service mulai dipisah.
 
 ### 4.3 Realtime Service
 
@@ -101,6 +105,8 @@ Catatan implementasi:
 - Object storage untuk gambar produk, thumbnail, dan rekaman siaran bila diperlukan.
 
 ## 5. Model Data Inti
+
+Implementasi backend saat ini masih memakai bentuk tabel MVP yang lebih sederhana: `items`, `orders`, dan `idempotency_keys`. Model domain di bawah ini adalah arah struktur target saat sistem berkembang.
 
 ```text
 User
@@ -139,23 +145,26 @@ sequenceDiagram
     participant U as Pembeli
     participant FE as Frontend
     participant API as API Service
-    participant Redis as Redis
     participant PG as PostgreSQL
-    participant RT as Realtime Service
 
     U->>FE: Klik beli sekarang
     FE->>API: POST /orders
-    API->>Redis: DECRBY sale_stock qty
+  API->>PG: BEGIN
+  API->>PG: UPDATE items SET sisa = sisa - qty WHERE sisa >= qty
     alt stok tersedia
-        API->>PG: Simpan order pending
-        API->>RT: Publish stock_update
-        RT-->>FE: Push sisa stok terbaru
+    API->>PG: INSERT INTO orders
+    API->>PG: COMMIT
         API-->>FE: Response order berhasil dibuat
-    else stok habis
-        API->>Redis: INCRBY rollback jika perlu
+  else stok habis atau item tidak ada
+    API->>PG: COMMIT
         API-->>FE: Response stok habis
     end
 ```
+
+Catatan:
+
+- Implementasi backend saat ini memakai PostgreSQL atomik untuk mencegah oversell pada MVP.
+- Redis masih relevan jika nanti throughput transaksi meningkat dan stok perlu dipisahkan ke layer cache khusus.
 
 ### 6.2 Live Chat dan Presence
 
@@ -177,7 +186,8 @@ sequenceDiagram
 | Keputusan | Alasan |
 |-----------|--------|
 | Pisahkan frontend, API, dan realtime | pola beban dan strategi scaling berbeda |
-| Redis untuk stok flash sale | operasi atomik lebih cepat dan aman dari race condition |
+| PostgreSQL atomik untuk stok pada MVP | lebih sederhana untuk dioperasikan sekarang, tetapi tetap aman dari race condition dasar |
+| Redis sebagai evolusi berikutnya | relevan saat skala realtime dan kontensi tulis meningkat |
 | PostgreSQL sebagai source of truth | relasi data transaksi lebih kuat dan konsisten |
 | Docker untuk packaging awal | memudahkan demo, deployment, dan konsistensi environment |
 | Nginx untuk runtime frontend | ringan, stabil, dan cocok untuk static build Vite |
@@ -187,7 +197,9 @@ sequenceDiagram
 ### 8.1 Artefak Docker yang Tersedia
 
 - `Dockerfile` menggunakan multi-stage build dari `node:22-alpine` ke `nginx:alpine`.
-- `docker-compose.yml` menjalankan service `frontend` pada port `8080`.
+- `backend/Dockerfile` menjalankan service API berbasis Node.js dan Express.
+- `docker-compose.yml` menjalankan service `frontend`, `api`, dan `postgres`.
+- `backend/sql/init.sql` menyiapkan schema awal dan seed catalog di PostgreSQL.
 - `nginx.conf` mengaktifkan fallback `index.html` agar siap untuk SPA routing.
 - `.dockerignore` mengurangi ukuran build context.
 
@@ -195,10 +207,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Browser -->|HTTP 8080| Compose[Docker Compose]
-    Compose --> FrontendContainer[live-shopping-frontend]
-    FrontendContainer --> Nginx[Nginx Runtime]
-    Nginx --> StaticBuild[Dist dari Vite Build]
+  Browser -->|HTTP 8080| FrontendContainer[live-shopping-frontend]
+  Browser -->|HTTP 3000| ApiContainer[live-shopping-api]
+  FrontendContainer --> Nginx[Nginx Runtime]
+  ApiContainer --> Postgres[(live-shopping-postgres)]
+  Nginx --> StaticBuild[Dist dari Vite Build]
 ```
 
 ### 8.3 Perintah Operasional
@@ -226,8 +239,8 @@ docker compose down
 ## 11. Roadmap Arsitektur
 
 1. Tahap 1: frontend + Docker packaging untuk demo.
-2. Tahap 2: monolithic API sederhana + PostgreSQL + Redis.
-3. Tahap 3: realtime service terpisah untuk chat dan update stok.
+2. Tahap 2: API sederhana + PostgreSQL untuk katalog dan order atomik.
+3. Tahap 3: realtime service terpisah untuk chat, notifikasi, dan update stok.
 4. Tahap 4: integrasi media service dan observability.
 5. Tahap 5: optimasi scaling, keamanan, dan deployment cloud.
 

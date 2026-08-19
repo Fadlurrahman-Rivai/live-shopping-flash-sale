@@ -1,6 +1,6 @@
 # Live Shopping Flash Sale
 
-Platform live commerce untuk proyek kelompok yang menggabungkan streaming produk, flash sale berbasis waktu, chat real-time, dan checkout cepat dalam satu alur. Repositori ini saat ini berisi frontend React + Vite, dokumen perencanaan produk, dokumen desain, arsitektur sistem, dan runtime Docker untuk packaging aplikasi.
+Platform live commerce untuk proyek kelompok yang menggabungkan streaming produk, flash sale berbasis waktu, chat real-time, dan checkout cepat dalam satu alur. Repositori ini sekarang berisi frontend React + Vite, backend Express + PostgreSQL untuk endpoint inti, dokumen perencanaan produk, dan runtime Docker untuk menjalankan stack awal proyek.
 
 ## Ringkasan Proyek
 
@@ -32,8 +32,9 @@ Value utama produk ini adalah menggabungkan urgensi flash sale dengan kepercayaa
 ## Tech Stack
 
 - Frontend: React 19, Vite 8, TypeScript, Tailwind CSS v4
+- Backend: Node.js, Express, PostgreSQL, pg, idempotent order API
 - Packaging frontend: Docker multi-stage build + Nginx runtime
-- Rencana backend: REST API, layanan realtime, PostgreSQL, Redis, object storage
+- Packaging backend: Docker image terpisah + PostgreSQL di Docker Compose
 - Preview lokal: Figma Make preview dan Docker Compose
 
 ## Struktur Repositori
@@ -44,6 +45,15 @@ live-shopping-flash-sale/
 |  |- App.tsx
 |  |- main.tsx
 |  |- index.css
+|- backend/
+|  |- src/
+|  |  |- app.js
+|  |  |- db.js
+|  |  |- server.js
+|  |- sql/
+|  |  |- init.sql
+|  |- test/
+|  |  |- api.test.js
 |- README.md
 |- Document/
 |  |- DESAIN/
@@ -63,23 +73,48 @@ live-shopping-flash-sale/
 ```bash
 pnpm install
 pnpm dev
+
+pnpm --dir backend install
+pnpm --dir backend dev
 ```
 
 Untuk build produksi:
 
 ```bash
 pnpm build
+pnpm test:backend
+```
+
+Frontend berjalan di port Vite standar proyek ini, sedangkan backend API berjalan di `http://localhost:3000` jika `DATABASE_URL` sudah tersedia.
+
+## Endpoint Backend Yang Sudah Tersedia
+
+- `GET /health` untuk health check service.
+- `GET /catalog?page=1&limit=20` untuk daftar produk berpaginasinya backend.
+- `POST /orders` untuk membuat order dengan pengurangan stok atomik.
+
+Contoh request order:
+
+```bash
+curl -X POST http://localhost:3000/orders \
+	-H "Content-Type: application/json" \
+	-H "Idempotency-Key: order-demo-1" \
+	-d '{"itemId":1,"qty":1}'
 ```
 
 ## Menjalankan Dengan Docker
 
-Frontend pada repo ini sudah siap dijalankan di Docker.
+Frontend, backend, dan PostgreSQL sudah disiapkan di Docker Compose.
 
 ```bash
 docker compose up --build -d
 ```
 
-Lalu akses aplikasi pada `http://localhost:8080`.
+Endpoint yang tersedia setelah container hidup:
+
+- Frontend: `http://localhost:8080`
+- Backend API: `http://localhost:3000`
+- PostgreSQL: `localhost:5432`
 
 Untuk menghentikan container:
 
@@ -90,14 +125,16 @@ docker compose down
 Catatan:
 
 - `Dockerfile` membangun aplikasi Vite lalu menyajikannya lewat Nginx.
-- `docker-compose.yml` saat ini menjalankan container frontend pada network `live-shopping-network`.
+- `backend/Dockerfile` membangun service API Express secara terpisah.
+- `docker-compose.yml` sekarang menjalankan container frontend, API, dan PostgreSQL pada network `live-shopping-network`.
 - Blueprint container backend, realtime, database, dan cache dijelaskan di [Document/ARCHITECTURE/README.md](./Document/ARCHITECTURE/README.md).
 
 ## Ruang Lingkup Implementasi Saat Ini
 
 - Frontend scaffold dan dokumentasi proyek sudah tersedia.
-- Packaging Docker untuk frontend sudah tersedia dan tervalidasi.
-- Backend, realtime service, dan penyimpanan data masih berada pada tahap desain arsitektur dan perencanaan implementasi.
+- Backend MVP untuk katalog dan order sudah tersedia di folder `backend`.
+- Packaging Docker untuk frontend, API, dan PostgreSQL sudah tersedia.
+- Realtime service, Redis, dan object storage masih berada pada tahap desain arsitektur dan perencanaan implementasi.
 
 ## Pembagian Tugas Kelompok
 

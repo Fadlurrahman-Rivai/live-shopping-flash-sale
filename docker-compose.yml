@@ -10,6 +10,47 @@ services:
     networks:
       - live-shopping-network
 
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: live-shopping-api
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/live_shopping
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - live-shopping-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: live-shopping-postgres
+    environment:
+      POSTGRES_DB: live_shopping
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d live_shopping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - live-shopping-network
+
+volumes:
+  postgres-data:
+
 networks:
   live-shopping-network:
     name: live-shopping-network

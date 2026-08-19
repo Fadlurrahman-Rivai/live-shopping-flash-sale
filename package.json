@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:backend": "pnpm --dir backend dev",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "test:backend": "pnpm --dir backend test",
+    "check:backend": "pnpm --dir backend check"
   },
   "dependencies": {
     "react": "^19.0.0",

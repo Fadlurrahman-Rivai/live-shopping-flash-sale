@@ -17,6 +17,9 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/App.tsx` - Primary application component and the usual starting point for UI work
 - `src/index.css` - Global CSS entrypoint and Tailwind CSS v4 import
 - `index.html` - Vite HTML shell containing the `#root` element and loading `src/main.tsx`
+- `backend/src/server.js` - Backend API entrypoint for the Express service
+- `backend/src/app.js` - Core API routes for catalog, health, and order creation
+- `backend/sql/init.sql` - PostgreSQL schema and seed data for the backend service
 - `Document/DESAIN/README.md` - Product design document for flows, UI modules, and team scope
 - `Document/PRD/README.md` - Product requirements document for MVP scope and acceptance criteria
 - `Document/ARCHITECTURE/README.md` - Technical architecture and Docker deployment blueprint
