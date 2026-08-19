@@ -1,0 +1,10 @@
+{
+  "description": "Streamlines project planning by generating design documents, product requirements, and architecture diagrams to enhance team collaboration and clarity.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.vite
+coverage
+*.log
+Dockerfile*
+docker-compose*
+README.md
+PRD.md
+ARCHITECTURE.md
+Desain MD dan PRD.zip
