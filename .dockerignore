@@ -7,6 +7,5 @@ coverage
 Dockerfile*
 docker-compose*
 README.md
-PRD.md
-ARCHITECTURE.md
+Document/
 Desain MD dan PRD.zip

@@ -155,7 +155,7 @@ Untuk presentasi proyek kelompok, dokumen desain dianggap cukup jika tim memilik
 
 ## 9. Hubungan Dengan Dokumen Lain
 
-- [PRD.md](./PRD.md) menjelaskan kebutuhan bisnis dan acceptance criteria.
-- [ARCHITECTURE.md](./ARCHITECTURE.md) menjelaskan implementasi teknis dan deployment Docker.
+- [PRD/README.md](../PRD/README.md) menjelaskan kebutuhan bisnis dan acceptance criteria.
+- [ARCHITECTURE/README.md](../ARCHITECTURE/README.md) menjelaskan implementasi teknis dan deployment Docker.
 
 Dokumen desain ini menjadi jembatan antara tujuan produk dan realisasi teknis di repository.

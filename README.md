@@ -14,9 +14,9 @@ Value utama produk ini adalah menggabungkan urgensi flash sale dengan kepercayaa
 
 ## Dokumen Utama
 
-- [DESAIN.md](./DESAIN.md) berisi desain produk, modul antarmuka, alur pengguna, dan pembagian area kerja.
-- [PRD.md](./PRD.md) berisi kebutuhan bisnis, ruang lingkup MVP, user stories, acceptance criteria, dan milestone.
-- [ARCHITECTURE.md](./ARCHITECTURE.md) berisi arsitektur teknis, diagram sistem, model data, dan deployment Docker.
+- [Document/DESAIN/README.md](./Document/DESAIN/README.md) berisi desain produk, modul antarmuka, alur pengguna, dan pembagian area kerja.
+- [Document/PRD/README.md](./Document/PRD/README.md) berisi kebutuhan bisnis, ruang lingkup MVP, user stories, acceptance criteria, dan milestone.
+- [Document/ARCHITECTURE/README.md](./Document/ARCHITECTURE/README.md) berisi arsitektur teknis, diagram sistem, model data, dan deployment Docker.
 
 ## Fitur MVP
 
@@ -45,9 +45,13 @@ live-shopping-flash-sale/
 |  |- main.tsx
 |  |- index.css
 |- README.md
-|- DESAIN.md
-|- PRD.md
-|- ARCHITECTURE.md
+|- Document/
+|  |- DESAIN/
+|  |  |- README.md
+|  |- PRD/
+|  |  |- README.md
+|  |- ARCHITECTURE/
+|  |  |- README.md
 |- Dockerfile
 |- docker-compose.yml
 |- nginx.conf
@@ -87,7 +91,7 @@ Catatan:
 
 - `Dockerfile` membangun aplikasi Vite lalu menyajikannya lewat Nginx.
 - `docker-compose.yml` saat ini menjalankan container frontend pada network `live-shopping-network`.
-- Blueprint container backend, realtime, database, dan cache dijelaskan di [ARCHITECTURE.md](./ARCHITECTURE.md).
+- Blueprint container backend, realtime, database, dan cache dijelaskan di [Document/ARCHITECTURE/README.md](./Document/ARCHITECTURE/README.md).
 
 ## Ruang Lingkup Implementasi Saat Ini
 
@@ -107,8 +111,8 @@ Catatan:
 
 ## Referensi Cepat
 
-- PRD untuk scope dan acceptance criteria: [PRD.md](./PRD.md)
-- Desain produk dan modul UI: [DESAIN.md](./DESAIN.md)
-- Diagram sistem dan Docker deployment: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- PRD untuk scope dan acceptance criteria: [Document/PRD/README.md](./Document/PRD/README.md)
+- Desain produk dan modul UI: [Document/DESAIN/README.md](./Document/DESAIN/README.md)
+- Diagram sistem dan Docker deployment: [Document/ARCHITECTURE/README.md](./Document/ARCHITECTURE/README.md)
 
 Dokumen ini ditujukan sebagai pintu masuk utama untuk anggota kelompok, dosen, dan reviewer proyek.
