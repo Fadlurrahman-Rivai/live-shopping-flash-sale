@@ -18,11 +18,44 @@ services:
     environment:
       PORT: 3000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/live_shopping
+      REALTIME_INTERNAL_URL: http://realtime:4000
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
+      realtime:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - live-shopping-network
+
+  realtime:
+    build:
+      context: ./realtime
+      dockerfile: Dockerfile
+    container_name: live-shopping-realtime
+    environment:
+      PORT: 4000
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "${REALTIME_PORT:-4000}:4000"
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - live-shopping-network
+
+  media:
+    build:
+      context: ./media
+      dockerfile: Dockerfile
+    container_name: live-shopping-media
+    environment:
+      PORT: 5000
+    ports:
+      - "${MEDIA_PORT:-5000}:5000"
     restart: unless-stopped
     networks:
       - live-shopping-network
@@ -44,6 +77,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - live-shopping-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: live-shopping-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
     restart: unless-stopped
     networks:
       - live-shopping-network

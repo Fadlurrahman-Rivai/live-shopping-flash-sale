@@ -1,6 +1,6 @@
 # Live Shopping Flash Sale
 
-Platform live commerce untuk proyek kelompok yang menggabungkan streaming produk, flash sale berbasis waktu, chat real-time, dan checkout cepat dalam satu alur. Repositori ini sekarang berisi frontend React + Vite, backend Express + PostgreSQL untuk endpoint inti, dokumen perencanaan produk, dan runtime Docker untuk menjalankan stack awal proyek.
+Platform live commerce untuk proyek kelompok yang menggabungkan streaming produk, flash sale berbasis waktu, chat real-time, dan checkout cepat dalam satu alur. Repositori ini sekarang berisi frontend React + Vite, backend Express + PostgreSQL untuk endpoint inti, realtime service berbasis WebSocket + Redis, media service stub untuk sesi ingest dan playback, dokumen perencanaan produk, dan runtime Docker untuk menjalankan stack awal proyek.
 
 ## Ringkasan Proyek
 
@@ -33,6 +33,8 @@ Value utama produk ini adalah menggabungkan urgensi flash sale dengan kepercayaa
 
 - Frontend: React 19, Vite 8, TypeScript, Tailwind CSS v4
 - Backend: Node.js, Express, PostgreSQL, pg, idempotent order API
+- Realtime: Node.js, Express, WebSocket, Redis pub/sub
+- Media control plane: Node.js, Express
 - Packaging frontend: Docker multi-stage build + Nginx runtime
 - Packaging backend: Docker image terpisah + PostgreSQL di Docker Compose
 - Preview lokal: Figma Make preview dan Docker Compose
@@ -54,6 +56,12 @@ live-shopping-flash-sale/
 |  |  |- init.sql
 |  |- test/
 |  |  |- api.test.js
+|- realtime/
+|  |- src/
+|  |  |- server.js
+|- media/
+|  |- src/
+|  |  |- server.js
 |- README.md
 |- Document/
 |  |- DESAIN/
@@ -90,8 +98,14 @@ Frontend berjalan di port Vite standar proyek ini, sedangkan backend API berjala
 ## Endpoint Backend Yang Sudah Tersedia
 
 - `GET /health` untuk health check service.
+- `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, dan `GET /me` untuk autentikasi dasar.
 - `GET /catalog?page=1&limit=20` untuk daftar produk berpaginasinya backend.
+- `GET/POST/PATCH /products` untuk CRUD dasar produk.
+- `GET/POST/PATCH /streams` untuk CRUD dasar stream.
+- `GET/POST/PATCH /flash-sales` untuk CRUD dasar flash sale.
+- `GET /orders` untuk daftar order sesuai peran pengguna.
 - `POST /orders` untuk membuat order dengan pengurangan stok atomik.
+- `GET/POST /streams/:streamId/chat` untuk persistence chat yang nantinya bisa dikonsumsi realtime service.
 
 Contoh request order:
 
@@ -104,7 +118,7 @@ curl -X POST http://localhost:3000/orders \
 
 ## Menjalankan Dengan Docker
 
-Frontend, backend, dan PostgreSQL sudah disiapkan di Docker Compose.
+Frontend, backend, realtime, media stub, PostgreSQL, dan Redis sudah disiapkan di Docker Compose.
 
 ```bash
 docker compose up --build -d
@@ -114,7 +128,10 @@ Endpoint yang tersedia setelah container hidup:
 
 - Frontend: `http://localhost:8080`
 - Backend API: `http://localhost:3000`
+- Realtime service: `http://localhost:4000`
+- Media service: `http://localhost:5000`
 - PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
 
 Untuk menghentikan container:
 
@@ -126,15 +143,19 @@ Catatan:
 
 - `Dockerfile` membangun aplikasi Vite lalu menyajikannya lewat Nginx.
 - `backend/Dockerfile` membangun service API Express secara terpisah.
-- `docker-compose.yml` sekarang menjalankan container frontend, API, dan PostgreSQL pada network `live-shopping-network`.
+- `realtime` service menerima event chat, presence, dan stok melalui WebSocket dan Redis pub/sub.
+- `media` service saat ini adalah control-plane stub untuk metadata sesi ingest dan playback, belum pipeline HLS atau WebRTC penuh.
+- `docker-compose.yml` sekarang menjalankan container frontend, API, realtime, media, PostgreSQL, Redis, dan network `live-shopping-network`.
 - Blueprint container backend, realtime, database, dan cache dijelaskan di [Document/ARCHITECTURE/README.md](./Document/ARCHITECTURE/README.md).
 
 ## Ruang Lingkup Implementasi Saat Ini
 
 - Frontend scaffold dan dokumentasi proyek sudah tersedia.
 - Backend MVP untuk katalog dan order sudah tersedia di folder `backend`.
-- Packaging Docker untuk frontend, API, dan PostgreSQL sudah tersedia.
-- Realtime service, Redis, dan object storage masih berada pada tahap desain arsitektur dan perencanaan implementasi.
+- Realtime service starter sudah tersedia di folder `realtime`.
+- Media service starter sudah tersedia di folder `media`.
+- Packaging Docker untuk frontend, API, realtime, media, PostgreSQL, dan Redis sudah tersedia.
+- Object storage dan pipeline media produksi penuh masih berada pada tahap desain arsitektur dan perencanaan implementasi.
 
 ## Pembagian Tugas Kelompok
 

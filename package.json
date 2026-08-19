@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:backend": "pnpm --dir backend dev",
+    "dev:realtime": "pnpm --dir realtime dev",
+    "dev:media": "pnpm --dir media dev",
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt",
     "test:backend": "pnpm --dir backend test",
-    "check:backend": "pnpm --dir backend check"
+    "check:backend": "pnpm --dir backend check",
+    "check:realtime": "pnpm --dir realtime check",
+    "check:media": "pnpm --dir media check"
   },
   "dependencies": {
     "react": "^19.0.0",

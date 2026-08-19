@@ -9,13 +9,15 @@ Saat dokumen ini ditulis, repositori sudah memiliki:
 
 - frontend React + Vite,
 - backend Express + PostgreSQL untuk endpoint inti,
+- realtime service berbasis WebSocket dan Redis pub/sub,
+- media service control-plane stub untuk sesi ingest dan playback,
 - dokumentasi desain produk,
 - dokumentasi PRD,
 - `Dockerfile` untuk build produksi frontend,
 - `backend/Dockerfile` untuk build service API,
-- `docker-compose.yml` untuk menjalankan frontend, API, dan PostgreSQL di Docker.
+- `docker-compose.yml` untuk menjalankan frontend, API, realtime, media, PostgreSQL, dan Redis di Docker.
 
-Komponen realtime, Redis, object storage, dan media service masih berstatus blueprint arsitektur implementasi berikutnya.
+Object storage dan pipeline media produksi penuh masih berstatus blueprint arsitektur implementasi berikutnya.
 
 ## 2. Gambaran Sistem Target
 
@@ -66,8 +68,9 @@ flowchart LR
 
 Catatan implementasi:
 
-- Yang benar-benar tersedia di repo saat ini adalah container `frontend`, `api`, dan `postgres`.
-- Service `realtime`, `redis`, dan `object storage` masih menjadi target stack fase berikutnya.
+- Yang benar-benar tersedia di repo saat ini adalah container `frontend`, `api`, `realtime`, `media`, `postgres`, dan `redis`.
+- `media` saat ini masih control-plane stub, belum server HLS atau WebRTC penuh.
+- `object storage` masih menjadi target stack fase berikutnya.
 - Semua service dirancang untuk berada pada network Docker yang sama agar komunikasi antar-service tetap sederhana pada lingkungan development.
 
 ## 4. Komponen Utama
@@ -92,17 +95,35 @@ Catatan implementasi:
 - Mengonsumsi pub/sub Redis untuk sinkronisasi lintas instance.
 - Menjadi jalur komunikasi real-time antara frontend dan backend.
 
+Implementasi saat ini menyediakan:
+
+- endpoint `GET /health`, `GET /rooms/:streamId/presence`, `POST /events/chat`, dan `POST /events/stock`,
+- WebSocket endpoint `GET /ws?streamId=...`,
+- broadcast lokal bila Redis tidak dikonfigurasi, dan Redis pub/sub bila `REDIS_URL` tersedia.
+
 ### 4.4 Media Service
 
 - Menangani ingest stream dari host.
 - Menyediakan distribusi stream ke penonton lewat WebRTC atau HLS.
 - Dapat dipisahkan dari realtime service agar scaling media tidak bercampur dengan scaling chat.
 
+Implementasi saat ini masih berupa control-plane stub yang menyediakan:
+
+- `POST /sessions` untuk membuat metadata sesi ingest dan playback,
+- `GET /sessions/:sessionId` dan `PATCH /sessions/:sessionId` untuk membaca atau memperbarui status sesi,
+- placeholder URL RTMP, HLS, dan WebRTC untuk memudahkan integrasi tahap berikutnya.
+
 ### 4.5 Data Layer
 
 - PostgreSQL sebagai source of truth data produk, order, user, dan stream.
 - Redis sebagai layer cepat untuk stok flash sale, pub/sub, session singkat, dan cache.
 - Object storage untuk gambar produk, thumbnail, dan rekaman siaran bila diperlukan.
+
+Implementasi saat ini memakai:
+
+- PostgreSQL untuk tabel `users`, `sessions`, `products`, `streams`, `flash_sales`, `orders`, `chat_messages`, dan `idempotency_keys`,
+- Redis untuk pub/sub realtime service,
+- object storage masih belum diimplementasikan sebagai service runtime di repo ini.
 
 ## 5. Model Data Inti
 
@@ -198,7 +219,9 @@ sequenceDiagram
 
 - `Dockerfile` menggunakan multi-stage build dari `node:22-alpine` ke `nginx:alpine`.
 - `backend/Dockerfile` menjalankan service API berbasis Node.js dan Express.
-- `docker-compose.yml` menjalankan service `frontend`, `api`, dan `postgres`.
+- `realtime/Dockerfile` menjalankan service realtime berbasis WebSocket dan Redis.
+- `media/Dockerfile` menjalankan service media control-plane stub.
+- `docker-compose.yml` menjalankan service `frontend`, `api`, `realtime`, `media`, `postgres`, dan `redis`.
 - `backend/sql/init.sql` menyiapkan schema awal dan seed catalog di PostgreSQL.
 - `nginx.conf` mengaktifkan fallback `index.html` agar siap untuk SPA routing.
 - `.dockerignore` mengurangi ukuran build context.
@@ -209,9 +232,14 @@ sequenceDiagram
 flowchart LR
   Browser -->|HTTP 8080| FrontendContainer[live-shopping-frontend]
   Browser -->|HTTP 3000| ApiContainer[live-shopping-api]
+  Browser -->|HTTP 4000 or WS| RealtimeContainer[live-shopping-realtime]
+  Browser -->|HTTP 5000| MediaContainer[live-shopping-media]
   FrontendContainer --> Nginx[Nginx Runtime]
   ApiContainer --> Postgres[(live-shopping-postgres)]
+  ApiContainer --> RealtimeContainer
+  RealtimeContainer --> Redis[(live-shopping-redis)]
   Nginx --> StaticBuild[Dist dari Vite Build]
+  MediaContainer --> SessionStore[(in-memory session metadata)]
 ```
 
 ### 8.3 Perintah Operasional
@@ -241,7 +269,7 @@ docker compose down
 1. Tahap 1: frontend + Docker packaging untuk demo.
 2. Tahap 2: API sederhana + PostgreSQL untuk katalog dan order atomik.
 3. Tahap 3: realtime service terpisah untuk chat, notifikasi, dan update stok.
-4. Tahap 4: integrasi media service dan observability.
+4. Tahap 4: mengganti media stub dengan pipeline ingest dan playback nyata.
 5. Tahap 5: optimasi scaling, keamanan, dan deployment cloud.
 
 Arsitektur ini sengaja dibuat bertahap agar sesuai dengan progres proyek kelompok: bisa didemokan sekarang, tetapi tetap punya jalur evolusi yang jelas menuju sistem live commerce yang lebih realistis.
