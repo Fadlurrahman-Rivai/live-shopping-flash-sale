@@ -28,3 +28,12 @@ Kumpulan log harian dan tinjauan kritis terhadap seluruh saran, otomatisasi, dan
 - **Diterima**: Rekomendasi penggunaan `Promise.all` untuk mengirimkan seluruh request secara paralel murni (sehingga merefleksikan kondisi rebutan yang sesungguhnya) dan kalkulasi filter status respon untuk 201 dan 409.
 - **Ditolak**: Kode rujukan yang menganggap status respon 409 (Conflict) sebagai kegagalan sistem pengujian. Hal ini ditolak karena respon 409 (Stok Habis / STOK_HABIS) adalah perilaku valid dan diinginkan demi mencegah oversell. Assertions diatur agar status 409 dinilai sebagai sukses pengujian.
 - **Verifikasi**: Mengeksekusi `node --test test/rebutan.test.js` menghasilkan status kelulusan sempurna (sukses = 5, ditolak = 295, sisa stok di database = 0).
+
+---
+
+### [QA / Doc] · Lapisan 3 · Entri 3
+- **Konteks**: Menyediakan spesifikasi statis kontrak API yang hilang untuk referensi standard pengujian.
+- **Prompt**: `"Buatkan isi openapi 3.0 yaml content saja untuk api live shopping yang mencakup health, orders dan roles nya berdasarkan backend/src/app.js"`
+- **Diterima**: Kerangka format tipe data OpenAPI 3.0 yang mengelompokkan spesifikasi jalur `/health`, `/catalog`, dan `/orders` dalam notasi YAML secara efisien.
+- **Ditolak**: Saran endpoint berlebihan (seperti `/orders/:id`, `/users`) yang belum tercakup di MVP/smoke test diabaikan, kami hanya menyertakan jalur dan parameter nyata agar sejalan persis dengan batasan uji.
+- **Verifikasi**: Berkas `openapi.yaml` berhasil tersimpan di akar proyek dan valid secara struktural (linting).

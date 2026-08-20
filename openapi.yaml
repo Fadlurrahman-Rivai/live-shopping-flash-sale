@@ -1,0 +1,123 @@
+openapi: 3.0.0
+info:
+  title: API Live Shopping Flash Sale
+  version: 1.1.0
+  description: Kontrak endpoint backend untuk demonstrasi platform flash sale MVP.
+
+servers:
+  - url: http://localhost:3000
+    description: Server Container Docker Lokal
+
+paths:
+  /health:
+    get:
+      summary: Health check server dan koneksi DB
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /catalog:
+    get:
+      summary: Ambil daftar seluruh katalog produk
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: List produk berformat terpaginasi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CatalogItem'
+
+  /orders:
+    post:
+      summary: Checkout pesanan flash sale dengan aman
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+            format: uuid
+          description: Mengunci pesanan agar tidak terduplikasi (opsional)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - itemId
+                - qty
+              properties:
+                itemId:
+                  type: integer
+                  example: 3
+                qty:
+                  type: integer
+                  minimum: 1
+                  example: 1
+      responses:
+        '201':
+          description: Transaksi order sukses dan stok terpotong
+        '400':
+          description: Validasi request input tidak bulat / tidak dikenali
+        '404':
+          description: Item ID tidak diketemukan
+        '409':
+          description: Ditolak - Stok item telah habis (Conflict Stok)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: "STOK_HABIS"
+
+components:
+  schemas:
+    CatalogItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        nama:
+          type: string
+        harga:
+          type: integer
+        sisa:
+          type: integer

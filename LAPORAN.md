@@ -19,6 +19,7 @@ Sistem ini memisahkan tanggung jawab aplikatif dan menerapkan isolasi runtime me
   - `POST /orders` : Memproses checkout pesanan flash sale dengan jaminan isolasi transaksi yang aman dari race condition.
 
 - **Tautan Konfigurasi**:
+  - Kontrak Swagger API Komprehensif: [openapi.yaml](openapi.yaml)
   - Berkas peluncur runtime multi-kontainer: [docker-compose.yml](docker-compose.yml)
   - Skema inisialisasi basis data: [backend/sql/init.sql](backend/sql/init.sql)
   - Kode logika rute server API: [backend/src/app.js](backend/src/app.js)
