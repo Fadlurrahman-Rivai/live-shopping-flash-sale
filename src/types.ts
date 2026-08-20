@@ -31,6 +31,7 @@ export interface FlashSale {
   productId: number;
   productName: string;
   productDescription: string;
+  productImageUrl?: string;
   streamId: number;
   salePrice: number;
   saleStock: number;

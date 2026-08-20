@@ -9,62 +9,82 @@ interface StreamCardProps {
 
 export default function StreamCard({ stream, onNavigate, featured = false }: StreamCardProps) {
   const isLive = stream.status === "live";
-  const isScheduled = stream.status === "scheduled";
+  const isEnded = stream.status === "ended";
 
   return (
     <button
       onClick={() => onNavigate({ id: "live", streamId: stream.id })}
-      className={`group text-left bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200 ${
-        featured ? "flex gap-0 flex-col sm:flex-row" : "flex flex-col"
-      }`}
+      className={`group text-left w-full rounded-2xl overflow-hidden focus:outline-none
+        hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.25)] hover:-translate-y-1
+        transition-all duration-300 ${isEnded ? "opacity-60 grayscale" : ""}`}
     >
       {/* Thumbnail */}
       <div
-        className={`relative flex-shrink-0 flex items-center justify-center ${
-          featured ? "sm:w-64 aspect-video sm:aspect-auto" : "aspect-video"
-        }`}
+        className={`relative overflow-hidden ${featured ? "aspect-[16/7]" : "aspect-[4/3]"}`}
         style={{ background: stream.gradient }}
       >
-        <span className="text-5xl select-none opacity-80">{stream.icon}</span>
+        {/* Multi-layer gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-transparent" />
 
-        {/* Status badge */}
-        <div className="absolute top-2.5 left-2.5">
+        {/* Center icon */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className={`select-none transition-all duration-500 group-hover:scale-125 group-hover:opacity-80
+            ${featured ? "text-[96px]" : "text-[72px]"} opacity-50`}>
+            {stream.icon}
+          </span>
+        </div>
+
+        {/* Play button — appears on hover */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+          <div className="w-14 h-14 rounded-full bg-white/25 backdrop-blur-md border border-white/40 flex items-center justify-center shadow-2xl scale-90 group-hover:scale-100 transition-transform duration-300">
+            <div className="w-0 h-0 border-t-[8px] border-b-[8px] border-l-[15px] border-transparent border-l-white ml-1" />
+          </div>
+        </div>
+
+        {/* Top row: status badge + category */}
+        <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
           <StatusBadge status={stream.status} />
+          <span className="text-[10px] font-semibold text-white bg-black/35 backdrop-blur-sm px-2.5 py-1 rounded-full">
+            {stream.category}
+          </span>
         </div>
 
-        {/* Viewer count for live */}
-        {isLive && (
-          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full">
-            <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
-            {formatViewer(stream.viewerCount)}
-          </div>
-        )}
+        {/* Bottom overlay: viewer / time + title + host */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          {isLive && (
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-80" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400" />
+              </span>
+              <span className="text-white/90 text-xs font-semibold tracking-wide">
+                {formatViewer(stream.viewerCount)} menonton
+              </span>
+            </div>
+          )}
+          {stream.status === "scheduled" && stream.scheduledAt && (
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-xs">🗓</span>
+              <span className="text-white/75 text-xs font-medium">{formatScheduled(stream.scheduledAt)}</span>
+            </div>
+          )}
+          {isEnded && stream.viewerPeak > 0 && (
+            <p className="text-white/50 text-xs mb-2">{formatViewer(stream.viewerPeak)} penonton</p>
+          )}
 
-        {/* Scheduled time */}
-        {isScheduled && stream.scheduledAt && (
-          <div className="absolute bottom-2.5 left-2.5 bg-black/50 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full">
-            🗓 {formatScheduled(stream.scheduledAt)}
-          </div>
-        )}
-      </div>
+          <h3 className={`text-white font-bold leading-snug line-clamp-2 mb-2.5 drop-shadow-sm
+            ${featured ? "text-xl sm:text-2xl" : "text-sm"}`}>
+            {stream.title}
+          </h3>
 
-      {/* Info */}
-      <div className={`flex flex-col gap-1 p-3 ${featured ? "sm:p-5 justify-center" : ""}`}>
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{stream.category}</p>
-        <h3
-          className={`font-semibold text-gray-900 leading-snug line-clamp-2 ${
-            featured ? "text-base sm:text-lg" : "text-sm"
-          }`}
-        >
-          {stream.title}
-        </h3>
-        <div className="flex items-center gap-2 mt-0.5">
-          <HostAvatar name={stream.hostName} />
-          <span className="text-xs text-gray-500 truncate">{stream.hostName}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+              {stream.hostName.charAt(0)}
+            </div>
+            <span className="text-white/75 text-xs font-medium truncate">{stream.hostName}</span>
+          </div>
         </div>
-        {stream.status === "ended" && stream.viewerPeak > 0 && (
-          <p className="text-xs text-gray-400 mt-0.5">{formatViewer(stream.viewerPeak)} penonton</p>
-        )}
       </div>
     </button>
   );
@@ -73,7 +93,7 @@ export default function StreamCard({ stream, onNavigate, featured = false }: Str
 function StatusBadge({ status }: { status: Stream["status"] }) {
   if (status === "live") {
     return (
-      <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow">
+      <span className="flex items-center gap-1.5 bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-red-500/40">
         <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
         Live
       </span>
@@ -81,22 +101,16 @@ function StatusBadge({ status }: { status: Stream["status"] }) {
   }
   if (status === "scheduled") {
     return (
-      <span className="bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow">
+      <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest border border-white/30">
         Upcoming
       </span>
     );
   }
   return (
-    <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+    <span className="bg-black/40 text-white/60 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest">
       Ended
     </span>
   );
 }
 
-function HostAvatar({ name }: { name: string }) {
-  return (
-    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 flex-shrink-0">
-      {name.charAt(0)}
-    </div>
-  );
-}
+

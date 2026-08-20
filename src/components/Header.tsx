@@ -15,10 +15,14 @@ export default function Header({ page, user, onNavigate, onLoginClick, onLogout 
         {/* Logo */}
         <button
           onClick={() => onNavigate({ id: "browse" })}
-          className="flex items-center gap-2 flex-shrink-0"
+          className="flex items-center gap-2 flex-shrink-0 group"
         >
-          <span className="text-xl">⚡</span>
-          <span className="font-bold text-gray-900 text-base tracking-tight">FlashLive</span>
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md shadow-orange-500/30 group-hover:shadow-orange-500/50 transition-shadow">
+            <span className="text-white text-sm">⚡</span>
+          </div>
+          <span className="font-black text-gray-900 text-base tracking-tight">
+            Flash<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">Live</span>
+          </span>
         </button>
 
         {/* Nav tabs */}
@@ -86,9 +90,9 @@ function NavTab({ label, active, onClick }: { label: string; active: boolean; on
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
         active
-          ? "bg-gray-900 text-white"
+          ? "bg-gray-900 text-white shadow-md shadow-gray-900/20"
           : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
       }`}
     >

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Page, User, FlashSale } from "../types";
-import { MOCK_STREAMS, MOCK_FLASH_SALES } from "../mock-data";
+import { MOCK_STREAMS, MOCK_FLASH_SALES, MOCK_CATALOG } from "../mock-data";
 import { useCountdown } from "../hooks/useCountdown";
 import { useLiveChat } from "../hooks/useLiveChat";
 import { formatPrice, formatViewer, discountPercent } from "../utils";
@@ -25,47 +25,69 @@ export default function LiveRoomPage({
   const flashSale = MOCK_FLASH_SALES[streamId] ?? MOCK_FLASH_SALES[1];
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderDone, setOrderDone] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"product" | "chat">("product");
+  const otherProducts = MOCK_CATALOG.filter((p) => p.streamId !== streamId).slice(0, 6);
 
   return (
     <div className="min-h-screen bg-[#0F0F0F]">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-black/40">
+      {/* Top bar — sticky so back button always visible when scrolling on mobile */}
+      <div className="sticky top-14 z-30 flex items-center gap-3 px-4 py-2.5 bg-gray-950/95 backdrop-blur-md border-b border-white/10">
         <button
           onClick={() => onNavigate({ id: "browse" })}
-          className="text-white/70 hover:text-white text-sm flex items-center gap-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-semibold transition-colors bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full"
         >
           ← Kembali
         </button>
-        <span className="text-white/30">|</span>
-        <h1 className="text-white text-sm font-medium truncate">{stream.title}</h1>
+        <span className="text-white/20">|</span>
+        <h1 className="text-white/70 text-sm font-medium truncate">{stream.title}</h1>
       </div>
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0 h-[calc(100vh-48px)]">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0 lg:h-[calc(100vh-104px)]">
         {/* Left: Video area */}
         <div className="lg:flex-1 flex flex-col">
-          <VideoArea stream={stream} />
+          <VideoArea stream={stream} flashSale={flashSale} />
         </div>
 
-        {/* Right: Panel */}
-        <div className="lg:w-[360px] flex-shrink-0 flex flex-col bg-white overflow-hidden lg:h-full">
-          {/* Flash sale card */}
-          <div className="flex-shrink-0">
-            <FlashSalePanel
-              flashSale={flashSale}
-              onBuy={() => {
-                if (!user) {
-                  onLoginRequired();
-                  return;
-                }
-                setShowCheckout(true);
-              }}
-              orderDone={orderDone}
-            />
+        {/* Right: Side panel */}
+        <div className="lg:w-[380px] flex-shrink-0 flex flex-col bg-white overflow-hidden lg:h-full">
+
+          {/* Mobile tab switcher */}
+          <div className="lg:hidden flex border-b border-gray-100">
+            {(["product", "chat"] as const).map((t) => (
+              <button key={t} onClick={() => setMobileTab(t)}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+                  mobileTab === t ? "text-gray-900 border-b-2 border-gray-900" : "text-gray-400"
+                }`}>
+                {t === "product" ? "⚡ Produk" : "💬 Chat"}
+              </button>
+            ))}
           </div>
 
-          {/* Chat */}
-          <div className="flex-1 min-h-0 flex flex-col border-t border-gray-100">
-            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+          {/* Product panel — always visible desktop, tab-conditional mobile */}
+          <div className={`flex-shrink-0 ${mobileTab !== "product" ? "hidden lg:block" : ""}`}>
+            <FlashSalePanel
+              flashSale={flashSale}
+              onBuy={() => { if (!user) { onLoginRequired(); return; } setShowCheckout(true); }}
+              orderDone={orderDone}
+            />
+            {/* Other products strip */}
+            <div className="border-t border-gray-100 px-4 py-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Produk Lainnya</p>
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
+                {otherProducts.map((p) => (
+                  <div key={p.id} className="flex-shrink-0 w-16 text-center">
+                    <img src={p.imageUrl} alt={p.name}
+                      className="w-16 h-16 rounded-xl object-cover border border-gray-100" loading="lazy" />
+                    <p className="text-[9px] text-gray-500 mt-1 line-clamp-2 leading-snug">{p.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Chat panel */}
+          <div className={`flex-1 min-h-0 flex flex-col border-t border-gray-100 ${mobileTab !== "chat" ? "hidden lg:flex" : ""}`}>
+            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Live Chat</span>
               <span className="text-xs text-gray-400">{formatViewer(stream.viewerCount)} menonton</span>
             </div>
@@ -96,40 +118,96 @@ export default function LiveRoomPage({
 
 /* ── Video Area ─────────────────────────────────────────── */
 
-function VideoArea({ stream }: { stream: (typeof MOCK_STREAMS)[number] }) {
-  return (
-    <div
-      className="relative flex-1 flex items-center justify-center min-h-[280px] lg:min-h-0"
-      style={{ background: stream.gradient }}
-    >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/30" />
+const REACTIONS = ["❤️", "🔥", "😍", "⚡", "💯", "🛒", "✨", "👑"];
 
-      {/* Center content */}
-      <div className="relative flex flex-col items-center gap-3 text-center px-6">
-        <div className="text-6xl sm:text-7xl opacity-90">{stream.icon}</div>
-        <p className="text-white/80 text-sm font-medium">Siaran berlangsung</p>
+function useFloatingReactions() {
+  const [items, setItems] = useState<{ id: number; emoji: string; x: number }[]>([]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setItems((prev) => [
+        ...prev.slice(-10),
+        { id: Date.now(), emoji: REACTIONS[Math.floor(Math.random() * REACTIONS.length)], x: 10 + Math.random() * 70 },
+      ]);
+    }, 900);
+    return () => clearInterval(id);
+  }, []);
+  return items;
+}
+
+function VideoArea({ stream, flashSale }: { stream: (typeof MOCK_STREAMS)[number]; flashSale: FlashSale }) {
+  const reactions = useFloatingReactions();
+  const discount = discountPercent(flashSale.normalPrice, flashSale.salePrice);
+
+  return (
+    <div className="relative flex-1 min-h-[340px] lg:min-h-0 overflow-hidden" style={{ background: stream.gradient }}>
+      {/* Cinematic overlays */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/30 to-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+
+      {/* Product image — center stage */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {flashSale.productImageUrl ? (
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-3xl bg-white/5 backdrop-blur-sm" />
+            <img
+              src={flashSale.productImageUrl}
+              alt={flashSale.productName}
+              className="relative w-44 h-44 lg:w-52 lg:h-52 object-cover rounded-3xl shadow-2xl border-2 border-white/20"
+            />
+            {/* Discount badge on image */}
+            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-lg">
+              -{discount}%
+            </div>
+          </div>
+        ) : (
+          <span className="text-8xl opacity-50">{stream.icon}</span>
+        )}
+      </div>
+
+      {/* Floating reactions */}
+      <div className="absolute bottom-24 right-3 w-10 h-48 pointer-events-none overflow-visible">
+        {reactions.map((r) => (
+          <span
+            key={r.id}
+            className="absolute text-2xl"
+            style={{
+              left: `${r.x}%`,
+              bottom: 0,
+              animation: "float-up 2.5s ease-out forwards",
+            }}
+          >
+            {r.emoji}
+          </span>
+        ))}
       </div>
 
       {/* LIVE badge */}
-      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-        <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-        LIVE
+      <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/50">
+        <span className="w-2 h-2 bg-white rounded-full animate-pulse" /> LIVE
       </div>
 
       {/* Viewer count */}
-      <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+      <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-black/50 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/10">
         👁 {formatViewer(stream.viewerCount)}
       </div>
 
-      {/* Host badge */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-sm text-white px-3 py-2 rounded-xl">
-        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-          {stream.hostName.charAt(0)}
+      {/* Bottom: host + flash sale preview */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-3">
+        {/* Host */}
+        <div className="flex items-center gap-2.5 bg-black/50 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-white/30 to-white/10 border border-white/30 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+            {stream.hostName.charAt(0)}
+          </div>
+          <div>
+            <p className="text-[9px] text-white/50 uppercase tracking-wider leading-none">Host</p>
+            <p className="text-xs font-semibold text-white leading-snug">{stream.hostName}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-[11px] text-white/60 leading-none">Host</p>
-          <p className="text-xs font-semibold leading-snug">{stream.hostName}</p>
+
+        {/* Flash sale price preview */}
+        <div className="bg-black/50 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 text-right">
+          <p className="text-[9px] text-orange-400 font-bold uppercase tracking-wider">⚡ Flash Price</p>
+          <p className="text-sm font-black text-white">{formatPrice(flashSale.salePrice)}</p>
         </div>
       </div>
     </div>
@@ -153,112 +231,118 @@ function FlashSalePanel({
 
   return (
     <div className="bg-white">
-      {/* Flash sale header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-500">
-        <div className="flex items-center gap-1.5">
-          <span className="text-white text-sm">⚡</span>
-          <span className="text-white text-xs font-bold uppercase tracking-wider">Flash Sale</span>
+      {/* Flash sale header — gradient bar */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-500 via-red-500 to-rose-500">
+        <div className="flex items-center gap-2">
+          <span className="text-white text-base">⚡</span>
+          <span className="text-white text-xs font-black uppercase tracking-widest">Flash Sale</span>
         </div>
         {!countdown.expired ? (
           <div className="flex items-center gap-1">
             {[countdown.hours, countdown.minutes, countdown.seconds].map((v, i) => (
-              <span key={i} className="flex items-center gap-1">
-                {i > 0 && <span className="text-white/60 text-xs">:</span>}
-                <span className="bg-black/20 text-white font-mono text-sm font-bold px-1.5 py-0.5 rounded">
+              <span key={i} className="flex items-center gap-0.5">
+                {i > 0 && <span className="text-white/50 text-xs font-bold">:</span>}
+                <span className="bg-black/25 backdrop-blur-sm text-white font-black font-mono text-sm px-2 py-1 rounded-lg min-w-[32px] text-center tabular-nums">
                   {String(v).padStart(2, "0")}
                 </span>
               </span>
             ))}
           </div>
         ) : (
-          <span className="text-white/80 text-xs font-semibold">Berakhir</span>
+          <span className="text-white/70 text-xs font-bold bg-black/20 px-2 py-1 rounded-full">Berakhir</span>
         )}
       </div>
 
       {/* Product info */}
-      <div className="px-4 py-3 space-y-3">
+      <div className="px-4 py-4 space-y-4">
         <div className="flex items-start gap-3">
-          {/* Product icon */}
-          <div
-            className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
-            style={{ background: "linear-gradient(135deg,#FEF3C7,#FDE68A)" }}
-          >
-            ✨
-          </div>
+          {flashSale.productImageUrl ? (
+            <img
+              src={flashSale.productImageUrl}
+              alt={flashSale.productName}
+              className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 shadow-md"
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 shadow-inner"
+              style={{ background: "linear-gradient(135deg,#FEF3C7,#FDE68A)" }}
+            >
+              ✨
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-gray-500 mb-0.5">Produk Pilihan</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Produk Pilihan</p>
             <h3 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">
               {flashSale.productName}
             </h3>
           </div>
         </div>
 
-        {/* Price */}
-        <div className="flex items-end gap-2">
-          <span className="text-xl font-black text-orange-500">{formatPrice(flashSale.salePrice)}</span>
-          <div className="flex flex-col items-start mb-0.5">
-            <span className="text-[10px] line-through text-gray-400">
-              {formatPrice(flashSale.normalPrice)}
-            </span>
-            <span className="text-[10px] font-bold text-red-500">-{discount}%</span>
+        {/* Price block */}
+        <div className="flex items-center justify-between bg-orange-50 rounded-2xl px-4 py-3 border border-orange-100">
+          <div>
+            <p className="text-[10px] text-orange-400 font-semibold uppercase tracking-wider mb-0.5">Harga Flash</p>
+            <p className="text-2xl font-black text-orange-500 leading-none">{formatPrice(flashSale.salePrice)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs line-through text-gray-400">{formatPrice(flashSale.normalPrice)}</p>
+            <div className="inline-flex items-center gap-1 bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded-full mt-0.5">
+              <span>↓</span> {discount}%
+            </div>
           </div>
         </div>
 
         {/* Stock bar */}
-        <div className="space-y-1">
-          <div className="flex justify-between text-[11px]">
-            <span className="text-gray-500">Stok Flash Sale</span>
-            <span className="font-semibold text-gray-700">
-              {flashSale.saleStock} / {flashSale.totalStock}
-            </span>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-semibold text-gray-600">Stok Flash Sale</span>
+            <span className="text-xs font-bold text-gray-800">{flashSale.saleStock} / {flashSale.totalStock}</span>
           </div>
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
               style={{
                 width: `${stockPct}%`,
-                background:
-                  stockPct < 30
-                    ? "linear-gradient(90deg,#EF4444,#F97316)"
-                    : "linear-gradient(90deg,#F97316,#FCD34D)",
+                background: stockPct < 30
+                  ? "linear-gradient(90deg,#EF4444,#F97316)"
+                  : "linear-gradient(90deg,#F97316,#FCD34D)",
               }}
-            />
+            >
+              <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
+            </div>
           </div>
           {stockPct < 30 && (
-            <p className="text-[10px] text-red-500 font-semibold animate-pulse">
-              ⚠️ Stok hampir habis!
+            <p className="text-[11px] text-red-500 font-bold flex items-center gap-1">
+              <span>🔥</span> Stok tersisa {stockPct}%!
             </p>
           )}
         </div>
 
         {/* Buy button */}
         {orderDone ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl py-3 text-center">
-            <p className="text-green-700 font-semibold text-sm">✓ Pesanan Berhasil!</p>
-            <p className="text-green-600 text-xs mt-0.5">Terima kasih sudah belanja</p>
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl py-4 text-center">
+            <p className="text-green-700 font-black text-base">✓ Pesanan Berhasil!</p>
+            <p className="text-green-600 text-xs mt-0.5 font-medium">Terima kasih sudah belanja 🎉</p>
           </div>
         ) : (
           <button
             onClick={onBuy}
             disabled={countdown.expired || flashSale.saleStock === 0}
-            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-3.5 rounded-2xl font-black text-sm text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0"
             style={{
-              background:
-                countdown.expired || flashSale.saleStock === 0
-                  ? "#9CA3AF"
-                  : "linear-gradient(135deg,#F97316,#EF4444)",
+              background: countdown.expired || flashSale.saleStock === 0
+                ? "#9CA3AF"
+                : "linear-gradient(135deg,#F97316,#EF4444,#EC4899)",
             }}
           >
-            {countdown.expired
-              ? "Flash Sale Berakhir"
-              : flashSale.saleStock === 0
-              ? "Stok Habis"
+            {countdown.expired ? "Flash Sale Berakhir"
+              : flashSale.saleStock === 0 ? "Stok Habis"
               : "🛒 Beli Sekarang"}
           </button>
         )}
 
-        <p className="text-center text-[10px] text-gray-400">
-          Maks {flashSale.quotaPerUser} pcs per pengguna
+        <p className="text-center text-[10px] text-gray-400 font-medium">
+          Maks {flashSale.quotaPerUser} pcs per pengguna · Bayar langsung
         </p>
       </div>
     </div>

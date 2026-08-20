@@ -1,5 +1,18 @@
 import type { Stream, FlashSale, ChatMessage } from "./types";
 
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  description: string;
+  imageUrl: string;
+  normalPrice: number;
+  salePrice?: number;
+  saleStock?: number;
+  category: string;
+  streamId?: number;
+  hostName: string;
+}
+
 const now = Date.now();
 const FLASH_END = new Date(now + 8 * 60 * 1000 + 34 * 1000).toISOString();
 const FLASH_START = new Date(now - 5 * 60 * 1000).toISOString();
@@ -132,6 +145,7 @@ export const MOCK_FLASH_SALES: Record<number, FlashSale> = {
     productName: "Serum Vitamin C + Collagen Gold Brightening 30ml",
     productDescription:
       "Formula eksklusif dari Korea dengan konsentrasi Vitamin C 20% dan Collagen Marine yang mencerahkan kulit dalam 7 hari. Cocok untuk semua jenis kulit, BPOM terdaftar.",
+    productImageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=400&fit=crop",
     streamId: 1,
     salePrice: 89_000,
     saleStock: 47,
@@ -148,6 +162,7 @@ export const MOCK_FLASH_SALES: Record<number, FlashSale> = {
     productName: "Nike Air Zoom Pegasus 42 — Midnight Colorway",
     productDescription:
       "Collab eksklusif Nike × Sacai edisi terbatas. Upper mesh breathable, midsole Air Zoom generasi terbaru. Hanya 200 pasang worldwide.",
+    productImageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop",
     streamId: 2,
     salePrice: 1_250_000,
     saleStock: 23,
@@ -161,9 +176,10 @@ export const MOCK_FLASH_SALES: Record<number, FlashSale> = {
   3: {
     id: 3,
     productId: 3,
-    productName: 'Laptop Gaming ASUS ROG Zephyrus G16 — RTX 4070',
+    productName: "Laptop Gaming ASUS ROG Zephyrus G16 — RTX 4070",
     productDescription:
       "Intel Core i9-14900H, RTX 4070 165W, 32GB DDR5, 1TB NVMe SSD. Garansi resmi ASUS 2 tahun.",
+    productImageUrl: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&h=400&fit=crop",
     streamId: 3,
     salePrice: 18_500_000,
     saleStock: 8,
@@ -175,6 +191,149 @@ export const MOCK_FLASH_SALES: Record<number, FlashSale> = {
     normalPrice: 24_999_000,
   },
 };
+
+export const MOCK_CATALOG: CatalogProduct[] = [
+  {
+    id: 1, category: "Kecantikan", hostName: "Sarah Beauty Official", streamId: 1,
+    name: "Serum Vitamin C + Collagen Gold 30ml",
+    description: "Cerahkan kulit dalam 7 hari, BPOM terdaftar",
+    imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=400&fit=crop",
+    normalPrice: 299_000, salePrice: 89_000, saleStock: 47,
+  },
+  {
+    id: 2, category: "Fashion", hostName: "KickZone Official", streamId: 2,
+    name: "Nike Air Zoom Pegasus 42 Midnight",
+    description: "Collab eksklusif, edisi terbatas 200 pasang",
+    imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop",
+    normalPrice: 2_400_000, salePrice: 1_250_000, saleStock: 23,
+  },
+  {
+    id: 3, category: "Elektronik", hostName: "GadgetMania ID", streamId: 3,
+    name: "ASUS ROG Zephyrus G16 RTX 4070",
+    description: "Core i9, 32GB DDR5, 1TB NVMe, garansi 2 tahun",
+    imageUrl: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&h=400&fit=crop",
+    normalPrice: 24_999_000, salePrice: 18_500_000, saleStock: 8,
+  },
+  {
+    id: 4, category: "Elektronik", hostName: "GadgetMania ID",
+    name: "Sony WH-1000XM5 Wireless Headphones",
+    description: "Active noise cancelling terbaik 2026, 30 jam battery",
+    imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
+    normalPrice: 4_499_000, salePrice: 3_299_000, saleStock: 15,
+  },
+  {
+    id: 5, category: "Aksesoris", hostName: "LuxeCloset",
+    name: "Casio G-Shock GA-2100 Carbon Core",
+    description: "Anti shock, waterproof 200m, solar powered",
+    imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
+    normalPrice: 1_850_000, salePrice: 1_299_000, saleStock: 30,
+  },
+  {
+    id: 6, category: "Fashion", hostName: "Batik Nusantara",
+    name: "Tas Kulit Premium Crossbody Bag",
+    description: "Full grain leather, handmade, tersedia 5 warna",
+    imageUrl: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop",
+    normalPrice: 899_000, salePrice: 549_000, saleStock: 20,
+  },
+  {
+    id: 7, category: "Kecantikan", hostName: "Sarah Beauty Official",
+    name: "Sunscreen SPF50+ PA++++ Ultra Matte 50ml",
+    description: "Tekstur ringan, no white cast, tahan 8 jam",
+    imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=400&h=400&fit=crop",
+    normalPrice: 189_000, salePrice: 99_000, saleStock: 150,
+  },
+  {
+    id: 8, category: "Kecantikan", hostName: "Sarah Beauty Official",
+    name: "Sheet Mask Brightening Niacinamide Pack 10pcs",
+    description: "Aloe vera + niacinamide, cocok untuk semua kulit",
+    imageUrl: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop",
+    normalPrice: 149_000, salePrice: 79_000, saleStock: 200,
+  },
+  {
+    id: 9, category: "Elektronik", hostName: "RTX Gaming Store",
+    name: "iPhone 17 Pro 256GB Natural Titanium",
+    description: "A19 Bionic chip, kamera 48MP, Dynamic Island",
+    imageUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop",
+    normalPrice: 21_999_000, salePrice: 18_999_000, saleStock: 5,
+  },
+  {
+    id: 10, category: "Elektronik", hostName: "GadgetMania ID",
+    name: "Sony ZV-E10 II Mirrorless Camera",
+    description: "26MP, 4K60fps, perfect untuk konten kreator",
+    imageUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&h=400&fit=crop",
+    normalPrice: 9_499_000, salePrice: 7_799_000, saleStock: 10,
+  },
+  {
+    id: 11, category: "Fashion", hostName: "KickZone Official",
+    name: "Adidas Ultraboost 24 Core Black",
+    description: "Boost midsole terbaru, Continental outsole, unisex",
+    imageUrl: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&h=400&fit=crop",
+    normalPrice: 2_199_000, salePrice: 1_499_000, saleStock: 35,
+  },
+  {
+    id: 12, category: "Kecantikan", hostName: "Sarah Beauty Official",
+    name: "Parfum Maison Margiela Replica Beach Walk 100ml",
+    description: "Inspired by Capri, sunny coconut & solar musk",
+    imageUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=400&h=400&fit=crop",
+    normalPrice: 1_299_000, salePrice: 899_000, saleStock: 18,
+  },
+  {
+    id: 13, category: "Elektronik", hostName: "RTX Gaming Store",
+    name: "JBL Flip 7 Portable Bluetooth Speaker",
+    description: "IP68 waterproof, 18 jam playback, bass boost mode",
+    imageUrl: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop",
+    normalPrice: 1_499_000, salePrice: 999_000, saleStock: 40,
+  },
+  {
+    id: 14, category: "Fashion", hostName: "Batik Nusantara",
+    name: "Dress Midi Floral Summer Collection",
+    description: "Premium viscose, breathable, size XS–XXL tersedia",
+    imageUrl: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400&h=400&fit=crop",
+    normalPrice: 459_000, salePrice: 279_000, saleStock: 60,
+  },
+  {
+    id: 15, category: "Kuliner", hostName: "Chef Yuda Kitchen",
+    name: "KitchenAid Artisan Stand Mixer 4.8L Empire Red",
+    description: "10 kecepatan, 59 attachment kompatibel, garansi 5 thn",
+    imageUrl: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop",
+    normalPrice: 8_999_000, salePrice: 6_499_000, saleStock: 7,
+  },
+  {
+    id: 16, category: "Kecantikan", hostName: "Sarah Beauty Official",
+    name: "Laneige Lip Sleeping Mask Berry 20g",
+    description: "Overnight lip treatment, moisture wrap technology, K-beauty bestseller",
+    imageUrl: "https://images.unsplash.com/photo-1631214499282-1abe3b3bba1a?w=400&h=400&fit=crop",
+    normalPrice: 299_000, salePrice: 189_000, saleStock: 85,
+  },
+  {
+    id: 17, category: "Elektronik", hostName: "GadgetMania ID",
+    name: "Apple AirPods Pro 2nd Gen — USB-C",
+    description: "Active noise cancellation, spatial audio, IP54, 30 jam total battery",
+    imageUrl: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400&h=400&fit=crop",
+    normalPrice: 3_899_000, salePrice: 2_999_000, saleStock: 22,
+  },
+  {
+    id: 18, category: "Elektronik", hostName: "RTX Gaming Store",
+    name: "Keychron Q3 Pro Mechanical Keyboard TKL",
+    description: "Wireless QMK/VIA, gasket mount, hot-swappable, aluminum body",
+    imageUrl: "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=400&h=400&fit=crop",
+    normalPrice: 2_199_000, salePrice: 1_699_000, saleStock: 18,
+  },
+  {
+    id: 19, category: "Fashion", hostName: "Batik Nusantara",
+    name: "Sepatu Formal Oxford Kulit Asli Pria",
+    description: "Genuine leather, Blake stitched, tersedia size 39–45",
+    imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&h=400&fit=crop",
+    normalPrice: 1_299_000, salePrice: 849_000, saleStock: 28,
+  },
+  {
+    id: 20, category: "Kecantikan", hostName: "Sarah Beauty Official",
+    name: "Drunk Elephant C-Firma Fresh Day Serum 30ml",
+    description: "15% L-ascorbic acid, antioxidant blend, firma & brighten",
+    imageUrl: "https://images.unsplash.com/photo-1617897903246-719242758050?w=400&h=400&fit=crop",
+    normalPrice: 1_150_000, salePrice: 799_000, saleStock: 12,
+  },
+];
 
 const CHAT_POOL: Omit<ChatMessage, "id">[] = [
   { userId: 101, userName: "Dewi R.", content: "Wah murah banget kak! ✨" },
