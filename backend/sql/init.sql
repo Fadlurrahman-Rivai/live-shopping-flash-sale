@@ -75,16 +75,52 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Partial index: every auth request only queries active (non-revoked) sessions
+CREATE INDEX IF NOT EXISTS idx_sessions_active
+  ON sessions(token) WHERE revoked_at IS NULL;
+
+-- Composite: quota check on every order hits both columns together
+CREATE INDEX IF NOT EXISTS idx_orders_buyer_flash_sale
+  ON orders(buyer_id, flash_sale_id);
+
+-- Covers buyer order list and count queries
+CREATE INDEX IF NOT EXISTS idx_orders_buyer_id
+  ON orders(buyer_id);
+
+-- Host order reports use products.host_id via JOIN
+CREATE INDEX IF NOT EXISTS idx_products_host_id
+  ON products(host_id);
+
+-- Chat pagination: high-frequency reads ordered by time per stream
+CREATE INDEX IF NOT EXISTS idx_chat_stream_time
+  ON chat_messages(stream_id, created_at DESC);
+
+-- Flash sale lookups by stream (catalog, stream detail)
+CREATE INDEX IF NOT EXISTS idx_flash_sales_stream_id
+  ON flash_sales(stream_id);
+
+-- Flash sale lookups by product (catalog subquery)
+CREATE INDEX IF NOT EXISTS idx_flash_sales_product_id
+  ON flash_sales(product_id);
+
+-- Stream filtering by status (live/scheduled list)
+CREATE INDEX IF NOT EXISTS idx_streams_status
+  ON streams(status);
+
+-- Host stream list and order reports
+CREATE INDEX IF NOT EXISTS idx_streams_host_id
+  ON streams(host_id);
+
 INSERT INTO users (name, email, password_hash, role, status)
-SELECT 'Admin CozyLab', 'admin@cozylab.local', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'admin', 'active'
+SELECT 'Admin CozyLab', 'admin@cozylab.local', '$argon2id$v=19$m=65536,p=4,t=3$BWTnHcXSoODMNiS4hJ4mRA$UcCl3Dh52l07MxvfpjPMvehSZlzr+98eatpWSIRHVXc', 'admin', 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@cozylab.local');
 
 INSERT INTO users (name, email, password_hash, role, status)
-SELECT 'Host CozyLab', 'host@cozylab.local', '0abea6ba7e8d8edb931b17c7add249429d95232502416ec48201f1b0f61ed23c', 'host', 'active'
+SELECT 'Host CozyLab', 'host@cozylab.local', '$argon2id$v=19$m=65536,p=4,t=3$NbAJ6uu3NQmIfn8RcUPWGQ$hvWt7Y2k1pbpB3UuK1Emgzlkhhxbf0XKxk2rkF9LL5Q', 'host', 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'host@cozylab.local');
 
 INSERT INTO users (name, email, password_hash, role, status)
-SELECT 'Buyer CozyLab', 'buyer@cozylab.local', 'e547bd13228250dfb4c7df1d1ebb78cfd9f2ada56ebb0c425d35829dd3ac4ae8', 'buyer', 'active'
+SELECT 'Buyer CozyLab', 'buyer@cozylab.local', '$argon2id$v=19$m=65536,p=4,t=3$vLmqyUOgyn1ae0KXMxKzqA$8Zhu7978cOjbAeUbIIgBrw0w+hAA7RKHUKX5CgtBc5w', 'buyer', 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'buyer@cozylab.local');
 
 INSERT INTO sessions (token, user_id)

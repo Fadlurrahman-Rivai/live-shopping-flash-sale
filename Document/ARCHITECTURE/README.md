@@ -7,15 +7,15 @@ Dokumen ini menjelaskan arsitektur teknis target sistem, status implementasi rep
 
 Saat dokumen ini ditulis, repositori sudah memiliki:
 
-- frontend React + Vite,
-- backend Express + PostgreSQL untuk endpoint inti,
+- frontend React + Vite dengan UI lengkap 6 halaman bertema Mobbin-inspired,
+- backend Express + PostgreSQL dengan seluruh endpoint MVP aktif,
 - realtime service berbasis WebSocket dan Redis pub/sub,
 - media service control-plane stub untuk sesi ingest dan playback,
-- dokumentasi desain produk,
-- dokumentasi PRD,
-- `Dockerfile` untuk build produksi frontend,
-- `backend/Dockerfile` untuk build service API,
-- `docker-compose.yml` untuk menjalankan frontend, API, realtime, media, PostgreSQL, dan Redis di Docker.
+- Nginx gateway sebagai reverse proxy antar-service,
+- dokumentasi desain produk, PRD, dan arsitektur,
+- Dockerfile untuk setiap service,
+- docker-compose.yml untuk menjalankan seluruh stack,
+- mock data dan fallback mode untuk demo tanpa backend.
 
 Object storage dan pipeline media produksi penuh masih berstatus blueprint arsitektur implementasi berikutnya.
 
@@ -77,9 +77,22 @@ Catatan implementasi:
 
 ### 4.1 Frontend Web
 
-- Framework: React 19, Vite 8, Tailwind CSS v4.
-- Tanggung jawab: daftar siaran, room live, kartu flash sale, chat panel, checkout, dashboard host, panel admin.
-- Integrasi: REST untuk data CRUD dan order; WebSocket untuk chat, presence, dan update stok.
+- Framework: React 19, Vite 8, TypeScript, Tailwind CSS v4.
+- Tema visual: Mobbin-inspired — minimalis, card-based layout, Inter font, badge status berwarna.
+- Halaman yang diimplementasikan:
+  - **BrowsePage**: daftar siaran live/terjadwal/ended, grid 3 kolom, filter tab, hero featured stream.
+  - **LiveRoomPage**: video area dengan gradient + badge LIVE, flash sale card, countdown real-time, stok progress bar, checkout modal, live chat panel.
+  - **AuthModal**: login dan register dengan role selector, fallback demo mode jika API offline.
+  - **HostDashboard**: 5 tab — ringkasan (stats + quick actions), siaran, produk, flash sale, pesanan.
+  - **AdminDashboard**: 4 tab — ringkasan (monitoring live + alerts), pengguna (blokir/aktifkan), siaran, transaksi.
+  - **BuyerOrders**: riwayat pesanan buyer dengan status dan detail produk.
+- Integrasi:
+  - REST API via `/api/` proxy (Vite dev proxy → backend port 3000; Nginx gateway di produksi).
+  - WebSocket via `/ws` proxy (Vite dev proxy → realtime port 4000; Nginx gateway di produksi).
+  - Fallback mock data otomatis jika backend tidak tersedia.
+- Demo akun:
+  - Email `admin@flashlive.id` → role admin.
+  - Email/password lain → role sesuai pilihan saat registrasi.
 
 ### 4.2 API Service
 
@@ -127,7 +140,7 @@ Implementasi saat ini memakai:
 
 ## 5. Model Data Inti
 
-Implementasi backend saat ini masih memakai bentuk tabel MVP yang lebih sederhana: `items`, `orders`, dan `idempotency_keys`. Model domain di bawah ini adalah arah struktur target saat sistem berkembang.
+Seluruh tabel berikut sudah diimplementasikan di `backend/sql/init.sql` dan aktif digunakan oleh API service.
 
 ```text
 User
@@ -167,25 +180,25 @@ sequenceDiagram
     participant FE as Frontend
     participant API as API Service
     participant PG as PostgreSQL
+    participant RT as Realtime Service
 
-    U->>FE: Klik beli sekarang
-    FE->>API: POST /orders
-  API->>PG: BEGIN
-  API->>PG: UPDATE items SET sisa = sisa - qty WHERE sisa >= qty
-    alt stok tersedia
+    U->>FE: Klik Beli Sekarang
+    FE->>API: POST /orders {flashSaleId, qty} + Idempotency-Key
+    API->>PG: BEGIN
+    API->>PG: UPDATE flash_sales SET sale_stock = sale_stock - qty WHERE sale_stock >= qty
+    API->>PG: UPDATE products SET stock = stock - qty WHERE stock >= qty
     API->>PG: INSERT INTO orders
     API->>PG: COMMIT
-        API-->>FE: Response order berhasil dibuat
-  else stok habis atau item tidak ada
-    API->>PG: COMMIT
-        API-->>FE: Response stok habis
-    end
+    API->>RT: POST /events/stock (kirim update stok)
+    API-->>FE: 201 Created — data order
+    RT-->>FE: WebSocket event stock_update
 ```
 
 Catatan:
 
-- Implementasi backend saat ini memakai PostgreSQL atomik untuk mencegah oversell pada MVP.
-- Redis masih relevan jika nanti throughput transaksi meningkat dan stok perlu dipisahkan ke layer cache khusus.
+- `Idempotency-Key` mencegah order ganda pada retry atau koneksi putus.
+- Pengurangan stok `flash_sales.sale_stock` dan `products.stock` dilakukan atomik dalam satu transaksi.
+- Setelah order berhasil, realtime service mem-broadcast `stock_update` ke semua penonton di room.
 
 ### 6.2 Live Chat dan Presence
 
@@ -221,25 +234,24 @@ sequenceDiagram
 - `backend/Dockerfile` menjalankan service API berbasis Node.js dan Express.
 - `realtime/Dockerfile` menjalankan service realtime berbasis WebSocket dan Redis.
 - `media/Dockerfile` menjalankan service media control-plane stub.
-- `docker-compose.yml` menjalankan service `frontend`, `api`, `realtime`, `media`, `postgres`, dan `redis`.
-- `backend/sql/init.sql` menyiapkan schema awal dan seed catalog di PostgreSQL.
-- `nginx.conf` mengaktifkan fallback `index.html` agar siap untuk SPA routing.
+- `gateway/nginx.conf` mengkonfigurasi reverse proxy untuk routing `/api/`, `/ws`, `/media/`, dan `/`.
+- `docker-compose.yml` menjalankan service `gateway`, `frontend`, `api`, `realtime`, `media`, `postgres`, dan `redis`.
+- `backend/sql/init.sql` menyiapkan schema lengkap dan seed data di PostgreSQL.
+- `nginx.conf` mengaktifkan fallback `index.html` untuk SPA routing di container frontend.
 - `.dockerignore` mengurangi ukuran build context.
 
 ### 8.2 Jalur Request Saat Ini
 
 ```mermaid
 flowchart LR
-  Browser -->|HTTP 8080| FrontendContainer[live-shopping-frontend]
-  Browser -->|HTTP 3000| ApiContainer[live-shopping-api]
-  Browser -->|HTTP 4000 or WS| RealtimeContainer[live-shopping-realtime]
-  Browser -->|HTTP 5000| MediaContainer[live-shopping-media]
-  FrontendContainer --> Nginx[Nginx Runtime]
-  ApiContainer --> Postgres[(live-shopping-postgres)]
-  ApiContainer --> RealtimeContainer
-  RealtimeContainer --> Redis[(live-shopping-redis)]
-  Nginx --> StaticBuild[Dist dari Vite Build]
-  MediaContainer --> SessionStore[(in-memory session metadata)]
+  Browser -->|http://localhost:80| GW[live-shopping-gateway\nNginx Reverse Proxy]
+  GW -->|lokasi /| FE[live-shopping-frontend\nNginx + Vite build]
+  GW -->|lokasi /api/| API[live-shopping-api\nExpress REST]
+  GW -->|lokasi /ws| RT[live-shopping-realtime\nWebSocket + Redis]
+  GW -->|lokasi /media/| Media[live-shopping-media\nControl-plane stub]
+  API --> PG[(live-shopping-postgres)]
+  API --> RT
+  RT --> RD[(live-shopping-redis)]
 ```
 
 ### 8.3 Perintah Operasional

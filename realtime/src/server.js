@@ -6,6 +6,7 @@ import { WebSocketServer } from "ws";
 
 const port = Number(process.env.PORT || 4000);
 const redisUrl = process.env.REDIS_URL;
+const apiInternalUrl = process.env.API_INTERNAL_URL;
 
 const app = express();
 app.use(express.json());
@@ -48,6 +49,21 @@ async function publishEvent(streamId, payload) {
   }
 
   broadcastLocal(streamId, payload);
+}
+
+// Returns user object if token is valid, null otherwise
+async function validateToken(token) {
+  if (!apiInternalUrl || !token) return null;
+  try {
+    const res = await fetch(`${apiInternalUrl}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body?.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function initializeRedis() {
@@ -132,7 +148,7 @@ app.use((error, _req, res, _next) => {
 const server = createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
-server.on("upgrade", (request, socket, head) => {
+server.on("upgrade", async (request, socket, head) => {
   const url = new URL(request.url || "/", `http://${request.headers.host}`);
   if (url.pathname !== "/ws") {
     socket.destroy();
@@ -141,12 +157,23 @@ server.on("upgrade", (request, socket, head) => {
 
   const streamId = url.searchParams.get("streamId");
   if (!streamId) {
+    socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  const token = url.searchParams.get("token");
+  const user = await validateToken(token);
+  if (!user) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
     socket.destroy();
     return;
   }
 
   wss.handleUpgrade(request, socket, head, (ws) => {
     ws.streamId = String(streamId);
+    ws.userId = user.id;
+    ws.userName = user.name;
     wss.emit("connection", ws, request);
   });
 });

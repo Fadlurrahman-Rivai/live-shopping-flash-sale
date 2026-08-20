@@ -44,35 +44,52 @@ Value utama produk ini adalah menggabungkan urgensi flash sale dengan kepercayaa
 ```text
 live-shopping-flash-sale/
 |- src/
-|  |- App.tsx
+|  |- App.tsx               \u2014 router utama, state auth global
 |  |- main.tsx
 |  |- index.css
+|  |- types.ts              \u2014 shared TypeScript types
+|  |- utils.ts              \u2014 formatPrice, formatViewer, dll
+|  |- api.ts                \u2014 API client dengan fallback mock
+|  |- mock-data.ts          \u2014 data demo untuk mode offline
+|  |- components/
+|  |  |- Header.tsx
+|  |  |- StreamCard.tsx
+|  |- hooks/
+|  |  |- useCountdown.ts    \u2014 countdown timer real-time
+|  |  |- useSimulatedChat.ts
+|  |  |- useLiveChat.ts     \u2014 WebSocket nyata + fallback simulasi
+|  |- pages/
+|  |  |- BrowsePage.tsx
+|  |  |- LiveRoomPage.tsx
+|  |  |- AuthModal.tsx
+|  |  |- HostDashboard.tsx
+|  |  |- AdminDashboard.tsx
+|  |  |- BuyerOrders.tsx
 |- backend/
 |  |- src/
-|  |  |- app.js
+|  |  |- app.js             \u2014 seluruh route REST API
 |  |  |- db.js
 |  |  |- server.js
 |  |- sql/
-|  |  |- init.sql
+|  |  |- init.sql           \u2014 schema lengkap + seed data
 |  |- test/
 |  |  |- api.test.js
 |- realtime/
 |  |- src/
-|  |  |- server.js
+|  |  |- server.js          \u2014 WebSocket + Redis pub/sub
 |- media/
 |  |- src/
-|  |  |- server.js
+|  |  |- server.js          \u2014 control-plane stub
+|- gateway/
+|  |- nginx.conf            \u2014 reverse proxy routing
 |- README.md
 |- Document/
-|  |- DESAIN/
-|  |  |- README.md
-|  |- PRD/
-|  |  |- README.md
-|  |- ARCHITECTURE/
-|  |  |- README.md
+|  |- DESAIN/README.md      \u2014 modul UI, visual system, alur navigasi
+|  |- PRD/README.md         \u2014 scope, user stories, acceptance criteria
+|  |- ARCHITECTURE/README.md \u2014 arsitektur teknis, Docker, sequence diagram
 |- Dockerfile
 |- docker-compose.yml
-|- nginx.conf
+|- nginx.conf               \u2014 SPA fallback untuk container frontend
 |- package.json
 ```
 
@@ -150,12 +167,15 @@ Catatan:
 
 ## Ruang Lingkup Implementasi Saat Ini
 
-- Frontend scaffold dan dokumentasi proyek sudah tersedia.
-- Backend MVP untuk katalog dan order sudah tersedia di folder `backend`.
-- Realtime service starter sudah tersedia di folder `realtime`.
-- Media service starter sudah tersedia di folder `media`.
-- Packaging Docker untuk frontend, API, realtime, media, PostgreSQL, dan Redis sudah tersedia.
-- Object storage dan pipeline media produksi penuh masih berada pada tahap desain arsitektur dan perencanaan implementasi.
+- Frontend UI lengkap: 6 halaman (Browse, Live Room, Auth, Host Dashboard, Admin Dashboard, Pesanan Saya).
+- Tema visual Mobbin-inspired dengan Tailwind CSS v4 dan Inter font.
+- Integrasi REST API dan WebSocket nyata dengan fallback mock data otomatis.
+- Backend MVP lengkap: auth, produk, stream, flash sale, order atomik, chat persistence.
+- Realtime service: WebSocket, Redis pub/sub, broadcast chat dan stok.
+- Nginx gateway sebagai reverse proxy antar seluruh service.
+- Docker Compose untuk menjalankan seluruh stack (gateway, frontend, API, realtime, media, PostgreSQL, Redis).
+- Mock data dan demo mode untuk presentasi tanpa backend hidup.
+- Object storage dan pipeline media produksi penuh masih berada pada tahap desain arsitektur.
 
 ## Pembagian Tugas Kelompok
 
@@ -166,6 +186,20 @@ Catatan:
 | Backend Engineer | auth, CRUD produk, flash sale, order, integrasi database |
 | Realtime and DevOps | WebSocket, cache, streaming, Docker, deployment |
 | QA and Documentation | test scenario, verifikasi acceptance criteria, dokumentasi |
+
+## Demo Akun UI
+
+Frontend menggunakan mock data dan mock auth. Jika backend tidak berjalan, login tetap berhasil menggunakan akun demo berikut.
+
+| Role | Cara Login | Akses |
+|------|-----------|-------|
+| **Pembeli** | Email + password apapun → pilih role **Pembeli** | Browse, Live Room, Checkout |
+| **Host** | Email + password apapun → pilih role **Host** | Browse + tab **Dashboard** (kelola siaran, produk, flash sale, pesanan) |
+| **Admin** | Gunakan email `admin@flashlive.id` + password apapun | Browse + tab **Dashboard** + tab **Admin** (monitor user, blokir akun, semua transaksi) |
+
+> Catatan: email `admin@flashlive.id` secara khusus menghasilkan mock user dengan role `admin`. Email lain menghasilkan role sesuai pilihan saat registrasi.
+
+Jika backend berjalan (`docker compose up`), login menggunakan akun nyata yang terdaftar di database.
 
 ## Referensi Cepat
 

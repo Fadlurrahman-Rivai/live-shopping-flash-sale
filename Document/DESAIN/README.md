@@ -153,7 +153,65 @@ Untuk presentasi proyek kelompok, dokumen desain dianggap cukup jika tim memilik
 - peta area implementasi untuk tiap anggota tim,
 - keterkaitan desain dengan PRD dan arsitektur teknis.
 
-## 9. Hubungan Dengan Dokumen Lain
+## 9. Sistem Visual yang Diimplementasikan
+
+### 9.1 Tema dan Pendekatan Desain
+
+UI diimplementasikan dengan pendekatan **Mobbin-inspired**: minimalis, bersih, berbasis kartu, dengan tipografi yang kuat. Referensi visual utama adalah pola desain aplikasi mobile modern yang dipakai Mobbin sebagai referensi library.
+
+Prinsip visual:
+
+- latar belakang abu-abu sangat terang `#F7F7F7` untuk kontras kartu yang jelas,
+- kartu putih dengan border tipis `border-gray-100` dan shadow minimal,
+- tipografi Inter dengan hierarki tegas (heading bold, label uppercase, body normal),
+- sudut membulat `rounded-2xl` konsisten di seluruh komponen,
+- badge status sebagai pill label berwarna.
+
+### 9.2 Palet Warna dan Badge
+
+| Elemen | Warna | Keterangan |
+|--------|-------|-----------|
+| LIVE badge | `#EF4444` merah | Konsisten dengan konvensi live streaming global |
+| UPCOMING badge | `#111827` hitam | Kuat dan jelas, menandakan jadwal pasti |
+| ENDED badge | `#9CA3AF` abu | Muted, tidak menarik perhatian berlebih |
+| Flash sale aksen | gradient `#F97316` \u2192 `#EF4444` | Oranye-merah menciptakan urgensi |
+| Host badge | `#6366F1` ungu | Membedakan role host dari buyer |
+| Admin badge | `#EF4444` merah | Menandakan akses tertinggi |
+| CTA primer | `#111827` hitam | Kontras tinggi, fokus tindakan |
+
+### 9.3 Komponen yang Diimplementasikan
+
+| Komponen | Lokasi | Fungsi |
+|---------|--------|--------|
+| `Header` | `src/components/Header.tsx` | Navbar sticky, logo, nav tabs per role |
+| `StreamCard` | `src/components/StreamCard.tsx` | Kartu siaran dengan thumbnail gradient, badge status, host info |
+| `BrowsePage` | `src/pages/BrowsePage.tsx` | Grid siaran + filter tabs + hero featured stream |
+| `LiveRoomPage` | `src/pages/LiveRoomPage.tsx` | Room penonton lengkap dengan semua komponen live |
+| `FlashSalePanel` | bagian LiveRoomPage | Countdown, stok bar, harga promo, tombol beli |
+| `ChatPanel` | bagian LiveRoomPage | Live chat dengan WebSocket real-time + fallback simulasi |
+| `CheckoutModal` | bagian LiveRoomPage | Konfirmasi pesanan + ringkasan harga |
+| `AuthModal` | `src/pages/AuthModal.tsx` | Login/register dengan role selector |
+| `HostDashboard` | `src/pages/HostDashboard.tsx` | Dashboard 5 tab untuk host |
+| `AdminDashboard` | `src/pages/AdminDashboard.tsx` | Panel monitoring 4 tab untuk admin |
+| `BuyerOrders` | `src/pages/BuyerOrders.tsx` | Riwayat pesanan buyer |
+
+### 9.4 Alur Navigasi Antar Halaman
+
+```mermaid
+flowchart LR
+    Browse[BrowsePage] -->|klik stream| Live[LiveRoomPage]
+    Browse -->|Masuk| Auth[AuthModal]
+    Auth -->|login berhasil| Browse
+    Live -->|Beli Sekarang| Checkout[CheckoutModal]
+    Live -->|tidak login| Auth
+    Nav[Header] -->|role: buyer| Orders[BuyerOrders]
+    Nav -->|role: host/admin| HostDash[HostDashboard]
+    Nav -->|role: admin| AdminDash[AdminDashboard]
+    HostDash -->|Masuk Room| Live
+    AdminDash -->|Monitor| Live
+```
+
+## 10. Hubungan Dengan Dokumen Lain
 
 - [PRD/README.md](../PRD/README.md) menjelaskan kebutuhan bisnis dan acceptance criteria.
 - [ARCHITECTURE/README.md](../ARCHITECTURE/README.md) menjelaskan implementasi teknis dan deployment Docker.

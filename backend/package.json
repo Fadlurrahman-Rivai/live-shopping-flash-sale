@@ -9,8 +9,11 @@
     "check": "node --check src/app.js && node --check src/db.js && node --check src/server.js"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
     "express": "^4.21.2",
-    "pg": "^8.13.1"
+    "express-rate-limit": "^8.6.2",
+    "pg": "^8.13.1",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
     "pg-mem": "^3.0.5",

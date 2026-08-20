@@ -1,5 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
+
+import { hash, verify, Algorithm } from "@node-rs/argon2";
 import express from "express";
+import { rateLimit } from "express-rate-limit";
+import { invalidateCatalog } from "./cache.js";
 
 const USER_ROLES = new Set(["buyer", "host", "admin"]);
 const USER_STATUSES = new Set(["active", "blocked", "pending_verification"]);
@@ -73,8 +77,8 @@ function timestampOrNull(value) {
   return new Date(time).toISOString();
 }
 
-function hashPassword(password) {
-  return createHash("sha256").update(password).digest("hex");
+async function hashPassword(password) {
+  return hash(password, { algorithm: Algorithm.Argon2id });
 }
 
 function sanitizeUser(row) {
@@ -375,7 +379,7 @@ async function buildOrderError(client, flashSaleId, qty, buyerId) {
   };
 }
 
-export function createApp({ pool }) {
+export function createApp({ pool, cache = null }) {
   const app = express();
 
   app.use(express.json());
@@ -389,6 +393,14 @@ export function createApp({ pool }) {
         return next();
       }
 
+      if (cache) {
+        const cached = await cache.get(`session:${token}`);
+        if (cached) {
+          req.auth = JSON.parse(cached);
+          return next();
+        }
+      }
+
       const result = await pool.query(
         `SELECT u.id, u.name, u.email, u.role, u.status, u.created_at
          FROM sessions s
@@ -399,6 +411,9 @@ export function createApp({ pool }) {
 
       if (result.rowCount === 1) {
         req.auth = sanitizeUser(result.rows[0]);
+        if (cache) {
+          await cache.set(`session:${token}`, JSON.stringify(req.auth), { EX: 3600 });
+        }
       }
 
       return next();
@@ -416,7 +431,17 @@ export function createApp({ pool }) {
     }
   });
 
-  app.post("/auth/register", async (req, res, next) => {
+  // 10 attempts per 15 minutes per IP — brute force protection
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    validate: { trustProxy: false },
+    message: galat("RATE_LIMIT", "Terlalu banyak percobaan. Coba lagi dalam 15 menit."),
+  });
+
+  app.post("/auth/register", authLimiter, async (req, res, next) => {
     const name = textOrNull(req.body?.name);
     const email = textOrNull(req.body?.email)?.toLowerCase() ?? null;
     const password = textOrNull(req.body?.password);
@@ -437,7 +462,7 @@ export function createApp({ pool }) {
         `INSERT INTO users (name, email, password_hash, role, status)
          VALUES ($1, $2, $3, $4, 'active')
          RETURNING id, name, email, role, status, created_at`,
-        [name, email, hashPassword(password), role],
+        [name, email, await hashPassword(password), role],
       );
       const token = randomUUID();
       await client.query(`INSERT INTO sessions (token, user_id) VALUES ($1, $2)`, [token, createdUser.rows[0].id]);
@@ -454,7 +479,7 @@ export function createApp({ pool }) {
     }
   });
 
-  app.post("/auth/login", async (req, res, next) => {
+  app.post("/auth/login", authLimiter, async (req, res, next) => {
     try {
       const email = textOrNull(req.body?.email)?.toLowerCase() ?? null;
       const password = textOrNull(req.body?.password);
@@ -464,7 +489,8 @@ export function createApp({ pool }) {
       }
 
       const user = await fetchUserByEmail(pool, email);
-      if (!user || user.password_hash !== hashPassword(password)) {
+      const passwordValid = user && await verify(user.password_hash, password);
+      if (!passwordValid) {
         return res.status(401).json(galat("LOGIN_GAGAL", "Email atau password salah"));
       }
 
@@ -482,6 +508,7 @@ export function createApp({ pool }) {
 
   app.post("/auth/logout", requireAuth, async (req, res, next) => {
     try {
+      if (cache) await cache.del(`session:${req.authToken}`);
       await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE token = $1`, [req.authToken]);
       return res.json({ ok: true });
     } catch (error) {
@@ -498,6 +525,11 @@ export function createApp({ pool }) {
       const page = Math.max(1, parsePositiveInteger(req.query.page, 1));
       const limit = Math.min(100, Math.max(1, parsePositiveInteger(req.query.limit, 20)));
       const offset = (page - 1) * limit;
+
+      if (cache) {
+        const cached = await cache.get(`catalog:${page}:${limit}`);
+        if (cached) return res.json(JSON.parse(cached));
+      }
 
       const itemsPromise = pool.query(
         `SELECT p.id,
@@ -534,12 +566,15 @@ export function createApp({ pool }) {
       const totalPromise = pool.query(`SELECT COUNT(*)::int AS n FROM products`);
 
       const [itemsResult, totalResult] = await Promise.all([itemsPromise, totalPromise]);
-      return res.json({
+      const payload = {
         data: itemsResult.rows,
         page,
         limit,
         total: totalResult.rows[0]?.n ?? 0,
-      });
+      };
+
+      if (cache) await cache.set(`catalog:${page}:${limit}`, JSON.stringify(payload), { EX: 60 });
+      return res.json(payload);
     } catch (error) {
       return next(error);
     }
@@ -647,6 +682,7 @@ export function createApp({ pool }) {
         [hostId, name, description, imageUrl, normalPrice, stock],
       );
 
+      await invalidateCatalog(cache);
       return res.status(201).json(mapProductRow(created.rows[0]));
     } catch (error) {
       return next(error);
@@ -704,6 +740,7 @@ export function createApp({ pool }) {
         [productId, name, description, imageUrl, normalPrice, stock],
       );
 
+      await invalidateCatalog(cache);
       return res.json(mapProductRow(updated.rows[0]));
     } catch (error) {
       return next(error);
@@ -1011,6 +1048,7 @@ export function createApp({ pool }) {
         [productId, streamId, salePrice, saleStock, quotaPerUser, startTime, endTime, status],
       );
 
+      await invalidateCatalog(cache);
       return res.status(201).json(mapFlashSaleRow({
         ...created.rows[0],
         productName: product.name,
@@ -1091,6 +1129,7 @@ export function createApp({ pool }) {
         [flashSaleId, salePrice, saleStock, quotaPerUser, startTime, endTime, status],
       );
 
+      await invalidateCatalog(cache);
       const product = await fetchProductById(pool, current.product_id);
       const stream = await fetchStreamById(pool, current.stream_id);
       return res.json(mapFlashSaleRow({
@@ -1197,7 +1236,18 @@ export function createApp({ pool }) {
     }
   });
 
-  app.post("/orders", requireRole("buyer", "admin"), async (req, res, next) => {
+  // 20 orders per minute per user — prevents buy-bot abuse
+  const ordersLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    // req.auth.id is guaranteed — requireRole runs before this limiter
+    keyGenerator: (req) => String(req.auth.id),
+    message: galat("RATE_LIMIT", "Terlalu banyak permintaan order. Coba lagi dalam 1 menit."),
+  });
+
+  app.post("/orders", requireRole("buyer", "admin"), ordersLimiter, async (req, res, next) => {
     const flashSaleId = positiveIntegerOrNull(req.body?.flashSaleId);
     const qty = positiveIntegerOrNull(req.body?.qty);
 
