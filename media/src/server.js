@@ -3,10 +3,14 @@ import { randomUUID } from "node:crypto";
 import express from "express";
 
 const port = Number(process.env.PORT || 5000);
+// Public Big Buck Bunny HLS stream — demo fallback when no real ingest is active
+const DEMO_HLS_URL = process.env.DEMO_HLS_URL || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
 const app = express();
 app.use(express.json());
 
-const sessions = new Map();
+const sessions = new Map();    // sessionId → session
+const byStream = new Map();    // streamId  → sessionId
 
 function buildSession(streamId, title) {
   const sessionId = randomUUID();
@@ -17,7 +21,7 @@ function buildSession(streamId, title) {
     status: "ready",
     ingestUrl: `rtmp://media.local/live/${sessionId}`,
     playback: {
-      hls: `https://media.local/hls/${sessionId}.m3u8`,
+      hls: DEMO_HLS_URL,
       webrtc: `wss://media.local/webrtc/${sessionId}`,
     },
     createdAt: new Date().toISOString(),
@@ -26,6 +30,20 @@ function buildSession(streamId, title) {
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+// Look up (or auto-create) a session for a given streamId — called by the frontend player
+app.get("/sessions/by-stream/:streamId", (req, res) => {
+  const streamId = Number(req.params.streamId);
+  if (!Number.isInteger(streamId) || streamId < 1) {
+    return res.status(400).json({ error: { code: "INPUT_TIDAK_VALID", message: "streamId harus bilangan bulat positif" } });
+  }
+  const existingId = byStream.get(streamId);
+  if (existingId) return res.json(sessions.get(existingId));
+  const session = buildSession(streamId, `Stream ${streamId}`);
+  sessions.set(session.id, session);
+  byStream.set(streamId, session.id);
+  return res.json(session);
 });
 
 app.post("/sessions", (req, res) => {
@@ -38,6 +56,7 @@ app.post("/sessions", (req, res) => {
 
   const session = buildSession(streamId, title);
   sessions.set(session.id, session);
+  byStream.set(streamId, session.id);
   return res.status(201).json(session);
 });
 

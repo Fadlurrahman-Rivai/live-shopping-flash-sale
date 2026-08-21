@@ -1,0 +1,11 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "pnpm": true,
+        "/^cd /workspaces/live-shopping-flash-sale && node --check media/src/server\\.js && echo \"media OK\" && node --check backend/src/server\\.js && echo \"backend OK\" && node --check realtime/src/server\\.js && echo \"realtime OK\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "npx tsc": true,
+        "git add": true
+    }
+}

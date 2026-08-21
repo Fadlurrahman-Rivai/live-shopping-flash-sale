@@ -35,6 +35,11 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       watch: { ignored: ['**/.figma/**'] },
       proxy: {
+        '/media': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/media/, ''),
+        },
         '/api': {
           target: 'http://localhost:3000',
           changeOrigin: true,

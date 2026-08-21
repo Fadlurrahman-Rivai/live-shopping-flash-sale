@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import Hls from "hls.js";
 import type { Page, User, FlashSale } from "../types";
 import { MOCK_STREAMS, MOCK_FLASH_SALES, MOCK_CATALOG } from "../mock-data";
 import { useCountdown } from "../hooks/useCountdown";
@@ -137,32 +138,72 @@ function useFloatingReactions() {
 function VideoArea({ stream, flashSale }: { stream: (typeof MOCK_STREAMS)[number]; flashSale: FlashSale }) {
   const reactions = useFloatingReactions();
   const discount = discountPercent(flashSale.normalPrice, flashSale.salePrice);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hlsUrl, setHlsUrl] = useState<string | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    fetch(`/media/sessions/by-stream/${stream.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => { if (s?.playback?.hls) setHlsUrl(s.playback.hls); })
+      .catch(() => {});
+  }, [stream.id]);
+
+  useEffect(() => {
+    if (!hlsUrl || !videoRef.current) return;
+    const video = videoRef.current;
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Native HLS — Safari / iOS
+      video.src = hlsUrl;
+      video.play().catch(() => {});
+      return;
+    }
+    if (!Hls.isSupported()) return;
+    const hls = new Hls({ maxBufferLength: 10 });
+    hls.loadSource(hlsUrl);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+    return () => hls.destroy();
+  }, [hlsUrl]);
 
   return (
     <div className="relative flex-1 min-h-[340px] lg:min-h-0 overflow-hidden" style={{ background: stream.gradient }}>
+      {/* Video element — fills area, hidden until a URL is loaded */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        muted
+        autoPlay
+        loop
+        playsInline
+        onCanPlay={() => setVideoReady(true)}
+      />
+
       {/* Cinematic overlays */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/30 to-black/50" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
 
-      {/* Product image — center stage */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {flashSale.productImageUrl ? (
-          <div className="relative">
-            <div className="absolute -inset-4 rounded-3xl bg-white/5 backdrop-blur-sm" />
-            <img
-              src={flashSale.productImageUrl}
-              alt={flashSale.productName}
-              className="relative w-44 h-44 lg:w-52 lg:h-52 object-cover rounded-3xl shadow-2xl border-2 border-white/20"
-            />
-            {/* Discount badge on image */}
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-lg">
-              -{discount}%
+      {/* Product image — shown only when video is not yet playing */}
+      {!videoReady && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {flashSale.productImageUrl ? (
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-3xl bg-white/5 backdrop-blur-sm" />
+              <img
+                src={flashSale.productImageUrl}
+                alt={flashSale.productName}
+                className="relative w-44 h-44 lg:w-52 lg:h-52 object-cover rounded-3xl shadow-2xl border-2 border-white/20"
+              />
+              {/* Discount badge on image */}
+              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-lg">
+                -{discount}%
+              </div>
             </div>
-          </div>
-        ) : (
-          <span className="text-8xl opacity-50">{stream.icon}</span>
-        )}
-      </div>
+          ) : (
+            <span className="text-8xl opacity-50">{stream.icon}</span>
+          )}
+        </div>
+      )}
 
       {/* Floating reactions */}
       <div className="absolute bottom-24 right-3 w-10 h-48 pointer-events-none overflow-visible">
